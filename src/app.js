@@ -2389,6 +2389,11 @@ function updateProfileAuthUI() {
 
 function openProfileSwitcher() {
   state.profileGateVisible = true;
+  state.pendingProfileId = null;
+  if (profilePasswordInput) {
+    profilePasswordInput.value = "";
+  }
+  setProfileAuthFeedback("");
   updateProfileSessionUI();
   updateProfileAuthUI();
 }
@@ -2580,7 +2585,18 @@ function attachEvents() {
     resetSimulationToLivePrice();
   });
   profileGate?.addEventListener("click", (event) => {
-    if (event.target === profileGate && state.activeProfileId) {
+    if (event.target !== profileGate) {
+      return;
+    }
+
+    state.pendingProfileId = null;
+    if (profilePasswordInput) {
+      profilePasswordInput.value = "";
+    }
+    setProfileAuthFeedback("");
+    updateProfileAuthUI();
+
+    if (state.activeProfileId) {
       closeProfileSwitcher();
     }
   });
