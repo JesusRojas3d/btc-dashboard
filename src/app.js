@@ -210,6 +210,10 @@ const formatCompactCurrency = new Intl.NumberFormat("en-US", {
 const chartFont =
   "-apple-system, BlinkMacSystemFont, SF Pro Text, Helvetica Neue, Arial, sans-serif";
 const valueMotionCache = new Map();
+const motionDeltaFormatter = new Intl.NumberFormat("es-CO", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
 const profileCatalog = {
   jesus: { id: "jesus", name: "Jesus" },
   alzate: { id: "alzate", name: "Alzate" },
@@ -229,22 +233,43 @@ function resolveMotionDirection(previousValue, nextValue) {
   return "neutral";
 }
 
-function triggerValueMotion(element, direction) {
-  if (!element) {
+function formatMotionDelta(delta, formatter) {
+  if (!Number.isFinite(delta) || delta === 0) {
+    return "";
+  }
+
+  if (typeof formatter === "function") {
+    return formatter(delta);
+  }
+
+  return `${delta > 0 ? "+" : "-"}${motionDeltaFormatter.format(Math.abs(delta))}`;
+}
+
+function triggerValueDelta(element, direction, delta, formatter) {
+  if (!element || direction === "neutral") {
     return;
   }
 
-  element.classList.remove("value-motion", "value-motion-up", "value-motion-down", "value-motion-neutral");
-  void element.offsetWidth;
-  element.classList.add("value-motion", `value-motion-${direction}`);
+  const deltaLabel = formatMotionDelta(delta, formatter);
 
-  if (element.__valueMotionTimer) {
-    clearTimeout(element.__valueMotionTimer);
+  if (!deltaLabel) {
+    return;
   }
 
-  element.__valueMotionTimer = setTimeout(() => {
-    element.classList.remove("value-motion", "value-motion-up", "value-motion-down", "value-motion-neutral");
-  }, 680);
+  Array.from(element.children || [])
+    .filter((node) => node.classList?.contains("value-delta"))
+    .forEach((node) => node.remove());
+
+  const deltaElement = document.createElement("span");
+  deltaElement.className = `value-delta value-delta-${direction}`;
+  deltaElement.textContent = deltaLabel;
+  element.append(deltaElement);
+
+  if (element.__valueDeltaTimer) {
+    clearTimeout(element.__valueDeltaTimer);
+  }
+
+  element.__valueDeltaTimer = setTimeout(() => deltaElement.remove(), 920);
 }
 
 function setAnimatedValue(element, nextContent, options = {}) {
@@ -256,6 +281,7 @@ function setAnimatedValue(element, nextContent, options = {}) {
     mode = "text",
     numericValue = null,
     motionKey = element.dataset.motionKey || element.id || "",
+    deltaFormatter = null,
   } = options;
 
   const normalizedContent = String(nextContent ?? "");
@@ -286,7 +312,11 @@ function setAnimatedValue(element, nextContent, options = {}) {
   }
 
   const direction = resolveMotionDirection(previousMotion?.value, normalizedValue);
-  triggerValueMotion(element, direction);
+  const delta =
+    Number.isFinite(previousMotion?.value) && Number.isFinite(normalizedValue)
+      ? normalizedValue - previousMotion.value
+      : null;
+  triggerValueDelta(element, direction, delta, deltaFormatter);
 }
 
 function syncAnimatedNodes(rootElement = document) {
