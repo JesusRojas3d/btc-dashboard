@@ -1,7 +1,7 @@
 ﻿const BINANCE_REST = "https://api.binance.com/api/v3/klines";
 const BINANCE_WS = "wss://stream.binance.com:9443/ws";
 const COINGECKO_RANGE = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range";
-const USD_COP_RATE = "https://open.er-api.com/v6/latest/USD";
+const USD_COP_RATE = "/api/usd-cop";
 const symbol = "btcusdt";
 
 const chartCanvas = document.querySelector("#btcChart");
@@ -85,6 +85,7 @@ const purchasesApiBase = "/api/purchases";
 const authApiBase = "/api/auth";
 const summaryVisibilityStorageKey = "btc-dashboard-summary-masked";
 const usdCopStorageKey = "btc-dashboard-usd-cop";
+const usdCopRefreshMs = 10_000;
 const newsStorageKey = "btc-dashboard-catano-feed";
 const dayMs = 24 * 60 * 60 * 1000;
 const bitcoinStartTime = new Date("2010-07-17T00:00:00Z").getTime();
@@ -853,10 +854,11 @@ async function loadUsdCopRate() {
     }
 
     const data = await response.json();
-    const rate = Number(data.rates?.COP);
-    const updatedAt = data.time_last_update_utc
-      ? new Date(data.time_last_update_utc).toISOString()
-      : new Date().toISOString();
+    const rate = Number(data.rate ?? data.rates?.COP);
+    const updatedAt = data.updatedAt ||
+      (data.time_last_update_utc
+        ? new Date(data.time_last_update_utc).toISOString()
+        : new Date().toISOString());
 
     if (Number.isFinite(rate) && rate > 0) {
       let previousRate = Number.isFinite(storedRate?.previousRate) ? Number(storedRate.previousRate) : null;
@@ -3324,7 +3326,7 @@ async function main() {
   setDefaultPurchaseDate();
   await loadPurchases();
   await loadUsdCopRate();
-  state.rateTimer = setInterval(loadUsdCopRate, 5 * 60 * 1000);
+  state.rateTimer = setInterval(loadUsdCopRate, usdCopRefreshMs);
   await loadBitcoinNews();
   state.newsTimer = setInterval(loadBitcoinNews, 5 * 60 * 1000);
   await start();

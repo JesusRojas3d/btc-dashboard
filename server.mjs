@@ -11,6 +11,7 @@ import {
   setSessionCookie,
   validateProfileCredentials,
 } from "./api/_lib/auth.js";
+import { fetchUsdCopRate } from "./api/_lib/usd-cop-rate.js";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const envPath = join(root, ".env");
@@ -431,6 +432,98 @@ const server = createServer(async (request, response) => {
 
     clearSessionCookie(response);
     sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  if (requestUrl.pathname === "/api/usd-cop") {
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "Metodo no permitido" });
+      return;
+    }
+
+    try {
+      sendJson(response, 200, await fetchUsdCopRate());
+    } catch (error) {
+      sendJson(response, 502, { error: error.message || "No se pudo cargar USD/COP" });
+    }
+    return;
+  }
+
+  if (requestUrl.pathname === "/api/purchases") {
+    const profileId = String(requestUrl.searchParams.get("profileId") || "").trim().toLowerCase();
+
+    if (!isValidProfileId(profileId)) {
+      sendJson(response, 404, { error: "Perfil no encontrado" });
+      return;
+    }
+
+    if (!ensureLocalAuthenticatedProfile(request, response, profileId)) {
+      return;
+    }
+
+    if (request.method === "GET") {
+      const purchasesDb = readPurchasesDb();
+      sendJson(response, 200, { purchases: purchasesDb[profileId] || [] });
+      return;
+    }
+
+    if (request.method === "PUT") {
+      try {
+        const body = await readJsonBody(request);
+        const purchasesDb = readPurchasesDb();
+        purchasesDb[profileId] = dedupeAndSortPurchases(body.purchases);
+        writePurchasesDb(purchasesDb);
+        sendJson(response, 200, { purchases: purchasesDb[profileId] });
+      } catch {
+        sendJson(response, 400, { error: "No se pudo actualizar el historial de compras" });
+      }
+      return;
+    }
+
+    if (request.method === "POST") {
+      try {
+        const body = await readJsonBody(request);
+        const purchasesDb = readPurchasesDb();
+        const newPurchase = normalizePurchase(body.purchase);
+
+        if (!newPurchase) {
+          sendJson(response, 400, { error: "Compra invalida" });
+          return;
+        }
+
+        purchasesDb[profileId] = dedupeAndSortPurchases([newPurchase, ...(purchasesDb[profileId] || [])]);
+        writePurchasesDb(purchasesDb);
+        sendJson(response, 201, { purchase: newPurchase, purchases: purchasesDb[profileId] });
+      } catch {
+        sendJson(response, 400, { error: "No se pudo guardar la compra" });
+      }
+      return;
+    }
+
+    if (request.method === "DELETE") {
+      const purchaseId = String(requestUrl.searchParams.get("purchaseId") || "").trim();
+
+      if (!purchaseId) {
+        sendJson(response, 400, { error: "Falta purchaseId" });
+        return;
+      }
+
+      const purchasesDb = readPurchasesDb();
+      const currentPurchases = purchasesDb[profileId] || [];
+      const nextPurchases = currentPurchases.filter((purchase) => purchase.id !== purchaseId);
+
+      if (nextPurchases.length === currentPurchases.length) {
+        sendJson(response, 404, { error: "Compra no encontrada" });
+        return;
+      }
+
+      purchasesDb[profileId] = nextPurchases;
+      writePurchasesDb(purchasesDb);
+      sendJson(response, 200, { purchases: nextPurchases });
+      return;
+    }
+
+    sendJson(response, 405, { error: "Metodo no permitido" });
     return;
   }
 
