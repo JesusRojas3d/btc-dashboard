@@ -1,40 +1,9 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "src/app.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "src/catano-avatar.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "styles.css",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "favicon.svg",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "catano-avatar.png",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "login-background.png",
-      "use": "@vercel/static"
-    }
-  ],
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
     {
       "handle": "filesystem"
     },
