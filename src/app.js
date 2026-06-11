@@ -80,7 +80,7 @@ const deletePurchaseCancel = document.querySelector("#deletePurchaseCancel");
 const deletePurchaseConfirm = document.querySelector("#deletePurchaseConfirm");
 const context = chartCanvas.getContext("2d");
 const purchasesStorageKey = "btc-dashboard-purchases";
-const purchasesApiBase = "/api/profiles";
+const purchasesApiBase = "/api/purchases";
 const authApiBase = "/api/auth";
 const summaryVisibilityStorageKey = "btc-dashboard-summary-masked";
 const usdCopStorageKey = "btc-dashboard-usd-cop";
@@ -1885,7 +1885,7 @@ async function loadPurchases() {
 }
 
 async function fetchProfilePurchases(profileId) {
-  const response = await fetch(`${purchasesApiBase}/${profileId}/purchases`, {
+  const response = await fetch(`${purchasesApiBase}?profileId=${encodeURIComponent(profileId)}`, {
     cache: "no-store",
     credentials: "same-origin",
   });
@@ -1900,7 +1900,7 @@ async function fetchProfilePurchases(profileId) {
 }
 
 async function replaceProfilePurchases(profileId, purchases) {
-  const response = await fetch(`${purchasesApiBase}/${profileId}/purchases`, {
+  const response = await fetch(`${purchasesApiBase}?profileId=${encodeURIComponent(profileId)}`, {
     method: "PUT",
     headers: {
       "content-type": "application/json",
@@ -1916,7 +1916,7 @@ async function replaceProfilePurchases(profileId, purchases) {
 }
 
 async function createProfilePurchase(profileId, purchase) {
-  const response = await fetch(`${purchasesApiBase}/${profileId}/purchases`, {
+  const response = await fetch(`${purchasesApiBase}?profileId=${encodeURIComponent(profileId)}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -1935,10 +1935,13 @@ async function createProfilePurchase(profileId, purchase) {
 }
 
 async function removeProfilePurchase(profileId, purchaseId) {
-  const response = await fetch(`${purchasesApiBase}/${profileId}/purchases/${purchaseId}`, {
-    method: "DELETE",
-    credentials: "same-origin",
-  });
+  const response = await fetch(
+    `${purchasesApiBase}?profileId=${encodeURIComponent(profileId)}&purchaseId=${encodeURIComponent(purchaseId)}`,
+    {
+      method: "DELETE",
+      credentials: "same-origin",
+    },
+  );
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);

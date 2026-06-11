@@ -10,6 +10,7 @@
     "pg": "^8.13.1"
   },
   "scripts": {
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "restore:purchases": "node scripts/restore-production-purchases.mjs"
   }
 }
