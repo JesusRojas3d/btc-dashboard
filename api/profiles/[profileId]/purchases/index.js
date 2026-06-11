@@ -1,4 +1,4 @@
-import { createPurchase, listPurchases } from "../../../_lib/purchases-store.js";
+import { createPurchase, listPurchases, replacePurchases } from "../../../_lib/purchases-store.js";
 
 function getProfileId(request) {
   return request.query?.profileId;
@@ -21,6 +21,16 @@ export default async function handler(request, response) {
     try {
       const purchase = await createPurchase(profileId, request.body?.purchase);
       response.status(201).json({ purchase });
+    } catch (error) {
+      response.status(400).json({ error: error.message });
+    }
+    return;
+  }
+
+  if (request.method === "PUT") {
+    try {
+      const purchases = await replacePurchases(profileId, request.body?.purchases);
+      response.status(200).json({ purchases });
     } catch (error) {
       response.status(400).json({ error: error.message });
     }

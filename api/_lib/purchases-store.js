@@ -212,6 +212,66 @@ export async function createPurchase(profileId, purchase) {
   };
 }
 
+export async function replacePurchases(profileId, purchases) {
+  if (!isValidProfileId(profileId)) {
+    throw new Error("Perfil no valido");
+  }
+
+  const normalizedPurchases = dedupePurchases(
+    Array.isArray(purchases)
+      ? purchases.map((purchase) => ({
+          ...purchase,
+          profileId,
+        }))
+      : [],
+  );
+
+  await ensurePurchasesSchema();
+  const db = getPool();
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+    await client.query(
+      `
+        delete from purchases
+        where profile_id = $1;
+      `,
+      [profileId],
+    );
+
+    for (const purchase of normalizedPurchases) {
+      await client.query(
+        `
+          insert into purchases (id, profile_id, purchase_date, btc, price_usd)
+          values ($1, $2, $3, $4, $5);
+        `,
+        [
+          purchase.id,
+          purchase.profileId,
+          purchase.date,
+          purchase.btc,
+          purchase.priceUsd,
+        ],
+      );
+    }
+
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  return normalizedPurchases.map((purchase) => ({
+    id: purchase.id,
+    date: new Date(purchase.date).toISOString(),
+    btc: purchase.btc,
+    priceUsd: purchase.priceUsd,
+  }));
+}
+
 export async function deletePurchase(profileId, purchaseId) {
   if (!isValidProfileId(profileId)) {
     throw new Error("Perfil no valido");
