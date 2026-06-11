@@ -137,6 +137,21 @@ const state = {
   newsItems: [],
 };
 
+async function readErrorMessage(response, fallbackMessage) {
+  const responseText = await response.text().catch(() => "");
+
+  if (!responseText) {
+    return fallbackMessage;
+  }
+
+  try {
+    const payload = JSON.parse(responseText);
+    return payload?.error || fallbackMessage;
+  } catch {
+    return `${fallbackMessage} (${response.status})`;
+  }
+}
+
 const formatCurrency = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -2470,6 +2485,7 @@ async function restoreProfileSession() {
   try {
     const response = await fetch(`${authApiBase}/session`, {
       cache: "no-store",
+      credentials: "same-origin",
     });
 
     if (!response.ok) {
@@ -2500,6 +2516,7 @@ async function loginProfile(profileId, password) {
     headers: {
       "content-type": "application/json",
     },
+    credentials: "same-origin",
     body: JSON.stringify({
       profileId,
       password,
@@ -2507,8 +2524,7 @@ async function loginProfile(profileId, password) {
   });
 
   if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    throw new Error(payload?.error || "No se pudo iniciar sesion");
+    throw new Error(await readErrorMessage(response, "No se pudo iniciar sesion"));
   }
 
   const payload = await response.json();
@@ -2534,6 +2550,7 @@ async function logoutProfile() {
   try {
     await fetch(`${authApiBase}/logout`, {
       method: "POST",
+      credentials: "same-origin",
     });
   } catch {}
 
