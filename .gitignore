@@ -2,3 +2,4 @@ node_modules/
 *.log
 .env
 data/profile-purchases.runtime.json
+data/profile-purchases.private.json

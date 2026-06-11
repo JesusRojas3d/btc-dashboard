@@ -3,13 +3,21 @@ import { randomUUID } from "node:crypto";
 import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  clearSessionCookie,
+  getAuthenticatedProfile,
+  getProfileCatalog,
+  getSessionResponsePayload,
+  setSessionCookie,
+  validateProfileCredentials,
+} from "./api/_lib/auth.js";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
-const host = process.env.HOST || "127.0.0.1";
-const port = Number(process.env.PORT || 4173);
+const envPath = join(root, ".env");
+const purchasesPrivateSeedDbPath = join(root, "data", "profile-purchases.private.json");
 const purchasesSeedDbPath = join(root, "data", "profile-purchases.seed.json");
 const purchasesRuntimeDbPath = join(root, "data", "profile-purchases.runtime.json");
-const profileIds = ["jesus", "alzate"];
+const profileIds = Object.keys(getProfileCatalog());
 const newsSources = [
   { url: "https://news.google.com/rss/search?q=bitcoin&hl=es-419&gl=CO&ceid=CO:es-419", source: "Google News" },
   { url: "https://www.coindesk.com/arc/outboundfeeds/rss/?outputType=xml", source: "CoinDesk" },
@@ -30,6 +38,38 @@ const contentTypes = {
   ".png": "image/png",
   ".svg": "image/svg+xml",
 };
+
+function loadLocalEnvFile() {
+  if (!existsSync(envPath)) {
+    return;
+  }
+
+  const envLines = readFileSync(envPath, "utf8").split(/\r?\n/);
+
+  envLines.forEach((line) => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine || trimmedLine.startsWith("#")) {
+      return;
+    }
+
+    const separatorIndex = trimmedLine.indexOf("=");
+    if (separatorIndex === -1) {
+      return;
+    }
+
+    const key = trimmedLine.slice(0, separatorIndex).trim();
+    const value = trimmedLine.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, "");
+
+    if (key && !(key in process.env)) {
+      process.env[key] = value;
+    }
+  });
+}
+
+loadLocalEnvFile();
+
+const host = process.env.HOST || "127.0.0.1";
+const port = Number(process.env.PORT || 4173);
 
 function createEmptyPurchasesDb() {
   return Object.fromEntries(profileIds.map((profileId) => [profileId, []]));
@@ -104,8 +144,13 @@ function normalizePurchasesDb(rawDb) {
 function ensurePurchasesDb() {
   mkdirSync(join(root, "data"), { recursive: true });
   if (!existsSync(purchasesRuntimeDbPath)) {
-    const seededDb = existsSync(purchasesSeedDbPath)
-      ? normalizePurchasesDb(JSON.parse(readFileSync(purchasesSeedDbPath, "utf8")))
+    const seedPath = existsSync(purchasesPrivateSeedDbPath)
+      ? purchasesPrivateSeedDbPath
+      : existsSync(purchasesSeedDbPath)
+        ? purchasesSeedDbPath
+        : null;
+    const seededDb = seedPath
+      ? normalizePurchasesDb(JSON.parse(readFileSync(seedPath, "utf8")))
       : createEmptyPurchasesDb();
     writeFileSync(purchasesRuntimeDbPath, `${JSON.stringify(seededDb, null, 2)}\n`, "utf8");
   }
@@ -137,6 +182,22 @@ function isValidProfileId(profileId) {
   return profileIds.includes(profileId);
 }
 
+function ensureLocalAuthenticatedProfile(request, response, expectedProfileId) {
+  const authenticatedProfile = getAuthenticatedProfile(request);
+
+  if (!authenticatedProfile) {
+    sendJson(response, 401, { error: "Sesion no valida" });
+    return null;
+  }
+
+  if (expectedProfileId && authenticatedProfile.id !== expectedProfileId) {
+    sendJson(response, 403, { error: "No tienes permiso para ese perfil" });
+    return null;
+  }
+
+  return authenticatedProfile;
+}
+
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, {
     "content-type": "application/json; charset=utf-8",
@@ -162,6 +223,15 @@ async function readJsonBody(request) {
 function resolvePath(urlPath) {
   const decodedPath = decodeURIComponent(urlPath.split("?")[0]);
   const safePath = normalize(decodedPath).replace(/^(\.\.[/\\])+/, "");
+
+  if (
+    safePath === ".env" ||
+    safePath.startsWith("data\\") ||
+    safePath.startsWith("data/")
+  ) {
+    return null;
+  }
+
   const filePath = join(root, safePath === "/" ? "index.html" : safePath);
 
   if (!filePath.startsWith(root)) {
@@ -311,12 +381,69 @@ async function fetchBitcoinNews() {
 const server = createServer(async (request, response) => {
   const requestUrl = new URL(request.url || "/", `http://${request.headers.host || `${host}:${port}`}`);
 
+  if (requestUrl.pathname === "/api/auth/session") {
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "Metodo no permitido" });
+      return;
+    }
+
+    sendJson(response, 200, getSessionResponsePayload(request));
+    return;
+  }
+
+  if (requestUrl.pathname === "/api/auth/login") {
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "Metodo no permitido" });
+      return;
+    }
+
+    try {
+      const body = await readJsonBody(request);
+      const profileId = String(body.profileId || "").trim().toLowerCase();
+      const password = String(body.password || "");
+
+      if (!getProfileCatalog()[profileId]) {
+        sendJson(response, 404, { error: "Perfil no encontrado" });
+        return;
+      }
+
+      if (!validateProfileCredentials(profileId, password)) {
+        sendJson(response, 401, { error: "Contraseña incorrecta" });
+        return;
+      }
+
+      setSessionCookie(response, profileId);
+      sendJson(response, 200, {
+        authenticated: true,
+        profile: getProfileCatalog()[profileId],
+      });
+    } catch (error) {
+      sendJson(response, 500, { error: error.message || "No se pudo iniciar sesion" });
+    }
+    return;
+  }
+
+  if (requestUrl.pathname === "/api/auth/logout") {
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "Metodo no permitido" });
+      return;
+    }
+
+    clearSessionCookie(response);
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
   const purchasesCollectionMatch = requestUrl.pathname.match(/^\/api\/profiles\/([^/]+)\/purchases$/);
   if (purchasesCollectionMatch) {
     const profileId = purchasesCollectionMatch[1];
 
     if (!isValidProfileId(profileId)) {
       sendJson(response, 404, { error: "Perfil no encontrado" });
+      return;
+    }
+
+    if (!ensureLocalAuthenticatedProfile(request, response, profileId)) {
       return;
     }
 
@@ -370,6 +497,10 @@ const server = createServer(async (request, response) => {
 
     if (!isValidProfileId(profileId)) {
       sendJson(response, 404, { error: "Perfil no encontrado" });
+      return;
+    }
+
+    if (!ensureLocalAuthenticatedProfile(request, response, profileId)) {
       return;
     }
 

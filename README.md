@@ -36,6 +36,7 @@ El servidor local guarda compras en:
 
 Si no existe, se crea a partir de:
 
+- `data/profile-purchases.private.json` si existe localmente
 - [data/profile-purchases.seed.json](</C:/Users/jesus/OneDrive/Documentos/BTC Dashboard/data/profile-purchases.seed.json>)
 
 ### En internet
@@ -93,6 +94,9 @@ Pasos:
 
 ```bash
 DATABASE_URL=postgresql://user:password@host/database?sslmode=require
+SESSION_SECRET=usa-un-secreto-largo-y-random
+PROFILE_PASSWORD_JESUS=123
+PROFILE_PASSWORD_ALZATE=sabe
 ```
 
 4. Haz deploy.
@@ -104,8 +108,12 @@ Vercel detectarÃ¡:
 
 ## QuÃ© hace el backend gratis
 
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/session`
 - `GET /api/profiles/:profileId/purchases`
 - `POST /api/profiles/:profileId/purchases`
+- `PUT /api/profiles/:profileId/purchases`
 - `DELETE /api/profiles/:profileId/purchases/:purchaseId`
 - `GET /api/bitcoin-news`
 
@@ -123,9 +131,9 @@ Ejemplo:
 
 ## Importante
 
-- El login de perfiles actual sigue siendo simple y del lado cliente.
-- Eso sirve para uso privado entre ustedes dos, pero no es seguridad fuerte.
-- Si luego quieres, el siguiente paso correcto es mover autenticaciÃ³n real al backend.
+- Las contraseñas ahora deben ir en variables de entorno del backend.
+- El archivo `data/profile-purchases.private.json` queda ignorado por Git para no exponer compras sensibles.
+- Si el repo fue público antes, conviene asumir que los secretos y compras antiguas ya pudieron ser vistos.
 
 ## Referencias oficiales
 

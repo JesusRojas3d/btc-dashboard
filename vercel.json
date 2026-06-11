@@ -14,10 +14,6 @@
       "use": "@vercel/static"
     },
     {
-      "src": "src/purchases-data.js",
-      "use": "@vercel/static"
-    },
-    {
       "src": "src/catano-avatar.js",
       "use": "@vercel/static"
     },

@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 
 const { Pool } = pg;
-const seedPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../data/profile-purchases.seed.json");
+const dataDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../data");
+const seedCandidatePaths = [
+  resolve(dataDir, "profile-purchases.private.json"),
+  resolve(dataDir, "profile-purchases.seed.json"),
+];
 const profileIds = ["jesus", "alzate"];
 
 let pool;
@@ -88,7 +92,15 @@ function dedupePurchases(purchases) {
 }
 
 async function readSeedPurchases() {
-  const rawSeed = JSON.parse(await readFile(seedPath, "utf8"));
+  let rawSeed = {};
+
+  for (const candidatePath of seedCandidatePaths) {
+    try {
+      rawSeed = JSON.parse(await readFile(candidatePath, "utf8"));
+      break;
+    } catch {}
+  }
+
   const purchases = [];
 
   profileIds.forEach((profileId) => {

@@ -1,4 +1,5 @@
 import { deletePurchase } from "../../../_lib/purchases-store.js";
+import { ensureAuthenticatedProfile } from "../../../_lib/auth.js";
 
 function getProfileId(request) {
   return request.query?.profileId;
@@ -9,6 +10,10 @@ function getPurchaseId(request) {
 }
 
 export default async function handler(request, response) {
+  if (!ensureAuthenticatedProfile(request, response, getProfileId(request))) {
+    return;
+  }
+
   if (request.method !== "DELETE") {
     response.status(405).json({ error: "Metodo no permitido" });
     return;

@@ -1,4 +1,5 @@
 import { createPurchase, listPurchases, replacePurchases } from "../../../_lib/purchases-store.js";
+import { ensureAuthenticatedProfile } from "../../../_lib/auth.js";
 
 function getProfileId(request) {
   return request.query?.profileId;
@@ -6,6 +7,9 @@ function getProfileId(request) {
 
 export default async function handler(request, response) {
   const profileId = getProfileId(request);
+  if (!ensureAuthenticatedProfile(request, response, profileId)) {
+    return;
+  }
 
   if (request.method === "GET") {
     try {
