@@ -27,6 +27,7 @@ const heroCurrentPriceCopElement = document.querySelector("#heroCurrentPriceCop"
 const currentPriceElement =
   document.querySelector("#currentPrice") || document.querySelector("#heroCurrentPrice");
 const priceChangeElement = document.querySelector("#priceChange");
+const priceChangeNoteElement = document.querySelector("#priceChangeNote");
 const rangeReturnElement = document.querySelector("#rangeReturn");
 const rangeReturnPercentElement = document.querySelector("#rangeReturnPercent");
 const rangeReturnAmountElement = document.querySelector("#rangeReturnAmount");
@@ -125,6 +126,7 @@ const state = {
   hoverIndex: null,
   lastClose: null,
   usdCop: null,
+  usdCopPrevious: null,
   purchases: [],
   pendingDeletePurchaseId: null,
   activeProfileId: null,
@@ -184,6 +186,12 @@ const formatTableCop = new Intl.NumberFormat("es-CO", {
 const formatUsdCopRate = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 0,
+});
+const bogotaDatePartsFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Bogota",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
 });
 
 const formatTableUsd = new Intl.NumberFormat("en-US", {
@@ -693,6 +701,7 @@ function handleTickerMessage(message) {
   state.lastClose = price;
   updatePurchaseSummary();
   updateUsdCopBadge();
+  updateUsdCopTrendNote();
 
   if (!state.liveChart) {
     updateRangeReturn();
@@ -718,6 +727,7 @@ function updatePrice() {
   }
   updateHeroCopPrice();
   updateUsdCopBadge();
+  updateUsdCopTrendNote();
 
   state.lastClose = last.close;
   initializeSimulationPrice();
@@ -727,9 +737,11 @@ function updatePrice() {
 async function loadUsdCopRate() {
   const storedRate = readStoredUsdCopRate();
   if (storedRate) {
-    state.usdCop = storedRate;
+    state.usdCop = Number(storedRate.rate);
+    state.usdCopPrevious = Number.isFinite(storedRate.previousRate) ? Number(storedRate.previousRate) : null;
     updateHeroCopPrice();
     updateUsdCopBadge();
+    updateUsdCopTrendNote();
     updatePurchaseSummary();
   }
 
@@ -741,13 +753,37 @@ async function loadUsdCopRate() {
 
     const data = await response.json();
     const rate = Number(data.rates?.COP);
+    const updatedAt = data.time_last_update_utc
+      ? new Date(data.time_last_update_utc).toISOString()
+      : new Date().toISOString();
+
     if (Number.isFinite(rate) && rate > 0) {
+      let previousRate = Number.isFinite(storedRate?.previousRate) ? Number(storedRate.previousRate) : null;
+      let previousUpdatedAt = storedRate?.previousUpdatedAt || null;
+
+      if (Number.isFinite(storedRate?.rate) && storedRate.rate > 0 && storedRate?.updatedAt) {
+        const storedDayKey = getBogotaDateKey(storedRate.updatedAt);
+        const nextDayKey = getBogotaDateKey(updatedAt);
+
+        if (storedDayKey && nextDayKey && storedDayKey !== nextDayKey) {
+          previousRate = Number(storedRate.rate);
+          previousUpdatedAt = storedRate.updatedAt;
+        }
+      }
+
       state.usdCop = rate;
+      state.usdCopPrevious = previousRate;
       updateHeroCopPrice();
       updateUsdCopBadge();
+      updateUsdCopTrendNote();
       localStorage.setItem(
         usdCopStorageKey,
-        JSON.stringify({ rate, updatedAt: new Date().toISOString() }),
+        JSON.stringify({
+          rate,
+          updatedAt,
+          previousRate,
+          previousUpdatedAt,
+        }),
       );
       updatePurchaseSummary();
     }
@@ -760,13 +796,30 @@ function readStoredUsdCopRate() {
   try {
     const storedRate = JSON.parse(localStorage.getItem(usdCopStorageKey) || "null");
     if (Number.isFinite(storedRate?.rate) && storedRate.rate > 0) {
-      return storedRate.rate;
+      return storedRate;
     }
   } catch {
     localStorage.removeItem(usdCopStorageKey);
   }
 
   return null;
+}
+
+function getBogotaDateKey(dateLike) {
+  const date = dateLike instanceof Date ? dateLike : new Date(dateLike);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const dateParts = Object.fromEntries(
+    bogotaDatePartsFormatter
+      .formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+
+  return `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
 }
 
 function updateHeroCopPrice() {
@@ -789,6 +842,31 @@ function updateUsdCopBadge() {
     ? `Hoy el dolar está en $ ${formatUsdCopRate.format(state.usdCop)} COP`
     : "Hoy el dolar está en - COP";
   priceChangeElement.style.color = "var(--text-secondary)";
+}
+
+function updateUsdCopTrendNote() {
+  if (!priceChangeNoteElement) {
+    return;
+  }
+
+  if (!Number.isFinite(state.usdCop) || !Number.isFinite(state.usdCopPrevious)) {
+    priceChangeNoteElement.textContent = "Sin referencia frente a ayer.";
+    priceChangeNoteElement.style.color = "var(--text-tertiary)";
+    return;
+  }
+
+  const difference = state.usdCop - state.usdCopPrevious;
+  const absoluteDifference = Math.round(Math.abs(difference));
+
+  if (absoluteDifference === 0) {
+    priceChangeNoteElement.textContent = "Sigue igual que ayer hasta este momento.";
+    priceChangeNoteElement.style.color = "var(--text-tertiary)";
+    return;
+  }
+
+  const wentUp = difference > 0;
+  priceChangeNoteElement.textContent = `${wentUp ? "Subió" : "Bajó"} $${formatUsdCopRate.format(absoluteDifference)} de ayer hasta este momento`;
+  priceChangeNoteElement.style.color = wentUp ? "var(--green)" : "var(--red)";
 }
 
 function formatNewsTimestamp(dateString) {

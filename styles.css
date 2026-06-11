@@ -456,6 +456,15 @@ body.profile-gate-open .shell {
   font-weight: 600;
 }
 
+.hero-price-note {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
 .news-card {
   display: grid;
   gap: 10px;
