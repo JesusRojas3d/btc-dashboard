@@ -210,10 +210,6 @@ const formatCompactCurrency = new Intl.NumberFormat("en-US", {
 const chartFont =
   "-apple-system, BlinkMacSystemFont, SF Pro Text, Helvetica Neue, Arial, sans-serif";
 const valueMotionCache = new Map();
-const motionDeltaFormatter = new Intl.NumberFormat("es-CO", {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
 const profileCatalog = {
   jesus: { id: "jesus", name: "Jesus" },
   alzate: { id: "alzate", name: "Alzate" },
@@ -233,43 +229,87 @@ function resolveMotionDirection(previousValue, nextValue) {
   return "neutral";
 }
 
-function formatMotionDelta(delta, formatter) {
-  if (!Number.isFinite(delta) || delta === 0) {
-    return "";
-  }
-
-  if (typeof formatter === "function") {
-    return formatter(delta);
-  }
-
-  return `${delta > 0 ? "+" : "-"}${motionDeltaFormatter.format(Math.abs(delta))}`;
+function getDisplayTextFromHtml(html) {
+  const template = document.createElement("template");
+  template.innerHTML = String(html ?? "");
+  return template.content.textContent ?? "";
 }
 
-function triggerValueDelta(element, direction, delta, formatter) {
-  if (!element || direction === "neutral") {
-    return;
+function isSlotFixedWidth(character) {
+  return /[0-9]/.test(character);
+}
+
+function createSlotCharacter(nextCharacter, previousCharacter, direction, shouldAnimate) {
+  const characterElement = document.createElement("span");
+  characterElement.className = "slot-character";
+  characterElement.textContent = nextCharacter;
+
+  if (isSlotFixedWidth(nextCharacter) || isSlotFixedWidth(previousCharacter)) {
+    characterElement.classList.add("slot-character-number");
   }
 
-  const deltaLabel = formatMotionDelta(delta, formatter);
-
-  if (!deltaLabel) {
-    return;
+  if (!shouldAnimate || direction === "neutral") {
+    return characterElement;
   }
 
-  Array.from(element.children || [])
-    .filter((node) => node.classList?.contains("value-delta"))
-    .forEach((node) => node.remove());
+  characterElement.textContent = "";
+  characterElement.classList.add("slot-character-animated", `slot-roll-${direction}`);
 
-  const deltaElement = document.createElement("span");
-  deltaElement.className = `value-delta value-delta-${direction}`;
-  deltaElement.textContent = deltaLabel;
-  element.append(deltaElement);
+  const previousElement = document.createElement("span");
+  previousElement.className = "slot-roll-old";
+  previousElement.textContent = previousCharacter || nextCharacter;
 
-  if (element.__valueDeltaTimer) {
-    clearTimeout(element.__valueDeltaTimer);
+  const nextElement = document.createElement("span");
+  nextElement.className = "slot-roll-new";
+  nextElement.textContent = nextCharacter;
+
+  characterElement.append(previousElement, nextElement);
+  return characterElement;
+}
+
+function createSlotFragment(nextText, previousText, direction, startIndex = 0) {
+  const fragment = document.createDocumentFragment();
+  const safeNextText = String(nextText ?? "");
+  const safePreviousText = String(previousText ?? "");
+
+  Array.from(safeNextText).forEach((character, localIndex) => {
+    const globalIndex = startIndex + localIndex;
+    const previousCharacter = Array.from(safePreviousText)[globalIndex] || "";
+    const shouldAnimate = previousCharacter && previousCharacter !== character;
+    fragment.append(createSlotCharacter(character, previousCharacter, direction, shouldAnimate));
+  });
+
+  return fragment;
+}
+
+function renderSlotText(element, nextText, previousText, direction) {
+  element.classList.add("slot-value");
+  element.replaceChildren(createSlotFragment(nextText, previousText, direction));
+}
+
+function renderSlotHtml(element, nextHtml, previousText, direction) {
+  const template = document.createElement("template");
+  template.innerHTML = String(nextHtml ?? "");
+  let textOffset = 0;
+
+  const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let textNode = walker.nextNode();
+
+  while (textNode) {
+    textNodes.push(textNode);
+    textNode = walker.nextNode();
   }
 
-  element.__valueDeltaTimer = setTimeout(() => deltaElement.remove(), 920);
+  textNodes.forEach((node) => {
+    const text = node.textContent ?? "";
+    const fragment = createSlotFragment(text, previousText, direction, textOffset);
+    textOffset += Array.from(text).length;
+    node.replaceWith(fragment);
+  });
+
+  element.classList.add("slot-value");
+  element.replaceChildren(template.content);
 }
 
 function setAnimatedValue(element, nextContent, options = {}) {
@@ -281,42 +321,46 @@ function setAnimatedValue(element, nextContent, options = {}) {
     mode = "text",
     numericValue = null,
     motionKey = element.dataset.motionKey || element.id || "",
-    deltaFormatter = null,
   } = options;
 
   const normalizedContent = String(nextContent ?? "");
+  const nextDisplayText =
+    mode === "html" ? getDisplayTextFromHtml(normalizedContent) : normalizedContent;
   const previousMotion = motionKey ? valueMotionCache.get(motionKey) : null;
   const previousContent =
     previousMotion?.content ??
     (mode === "html" ? element.innerHTML : element.textContent ?? "");
+  const previousDisplayText =
+    previousMotion?.display ??
+    (mode === "html" ? getDisplayTextFromHtml(previousContent) : previousContent);
   const contentChanged = previousContent !== normalizedContent;
-
-  if (mode === "html") {
-    element.innerHTML = normalizedContent;
-  } else {
-    element.textContent = normalizedContent;
-  }
+  const normalizedValue = Number.isFinite(numericValue) ? Number(numericValue) : null;
+  const direction = resolveMotionDirection(previousMotion?.value, normalizedValue);
 
   if (!motionKey) {
+    if (mode === "html") {
+      element.innerHTML = normalizedContent;
+    } else {
+      element.textContent = normalizedContent;
+    }
     return;
   }
 
-  const normalizedValue = Number.isFinite(numericValue) ? Number(numericValue) : null;
+  if (mode === "html") {
+    renderSlotHtml(element, normalizedContent, previousDisplayText, direction);
+  } else {
+    renderSlotText(element, normalizedContent, previousDisplayText, direction);
+  }
+
   valueMotionCache.set(motionKey, {
     content: normalizedContent,
+    display: nextDisplayText,
     value: normalizedValue,
   });
 
   if (!contentChanged) {
     return;
   }
-
-  const direction = resolveMotionDirection(previousMotion?.value, normalizedValue);
-  const delta =
-    Number.isFinite(previousMotion?.value) && Number.isFinite(normalizedValue)
-      ? normalizedValue - previousMotion.value
-      : null;
-  triggerValueDelta(element, direction, delta, deltaFormatter);
 }
 
 function syncAnimatedNodes(rootElement = document) {
