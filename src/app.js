@@ -208,10 +208,96 @@ const formatCompactCurrency = new Intl.NumberFormat("en-US", {
 
 const chartFont =
   "-apple-system, BlinkMacSystemFont, SF Pro Text, Helvetica Neue, Arial, sans-serif";
+const valueMotionCache = new Map();
 const profileCatalog = {
   jesus: { id: "jesus", name: "Jesus" },
   alzate: { id: "alzate", name: "Alzate" },
 };
+
+function resolveMotionDirection(previousValue, nextValue) {
+  if (Number.isFinite(previousValue) && Number.isFinite(nextValue)) {
+    if (nextValue > previousValue) {
+      return "up";
+    }
+
+    if (nextValue < previousValue) {
+      return "down";
+    }
+  }
+
+  return "neutral";
+}
+
+function triggerValueMotion(element, direction) {
+  if (!element) {
+    return;
+  }
+
+  element.classList.remove("value-motion", "value-motion-up", "value-motion-down", "value-motion-neutral");
+  void element.offsetWidth;
+  element.classList.add("value-motion", `value-motion-${direction}`);
+
+  if (element.__valueMotionTimer) {
+    clearTimeout(element.__valueMotionTimer);
+  }
+
+  element.__valueMotionTimer = setTimeout(() => {
+    element.classList.remove("value-motion", "value-motion-up", "value-motion-down", "value-motion-neutral");
+  }, 680);
+}
+
+function setAnimatedValue(element, nextContent, options = {}) {
+  if (!element) {
+    return;
+  }
+
+  const {
+    mode = "text",
+    numericValue = null,
+    motionKey = element.dataset.motionKey || element.id || "",
+  } = options;
+
+  const normalizedContent = String(nextContent ?? "");
+  const previousMotion = motionKey ? valueMotionCache.get(motionKey) : null;
+  const previousContent =
+    previousMotion?.content ??
+    (mode === "html" ? element.innerHTML : element.textContent ?? "");
+  const contentChanged = previousContent !== normalizedContent;
+
+  if (mode === "html") {
+    element.innerHTML = normalizedContent;
+  } else {
+    element.textContent = normalizedContent;
+  }
+
+  if (!motionKey) {
+    return;
+  }
+
+  const normalizedValue = Number.isFinite(numericValue) ? Number(numericValue) : null;
+  valueMotionCache.set(motionKey, {
+    content: normalizedContent,
+    value: normalizedValue,
+  });
+
+  if (!contentChanged) {
+    return;
+  }
+
+  const direction = resolveMotionDirection(previousMotion?.value, normalizedValue);
+  triggerValueMotion(element, direction);
+}
+
+function syncAnimatedNodes(rootElement = document) {
+  rootElement.querySelectorAll?.("[data-motion-key]").forEach((node) => {
+    const numericValue = Number(node.dataset.motionValue);
+    setAnimatedValue(node, node.innerHTML, {
+      mode: "html",
+      motionKey: node.dataset.motionKey,
+      numericValue: Number.isFinite(numericValue) ? numericValue : null,
+    });
+  });
+}
 const profilePurchaseBundles =
   window.__BTC_PROFILE_PURCHASES__ ||
   (Array.isArray(window.__BTC_BUNDLED_PURCHASES__)
@@ -697,7 +783,16 @@ function handleTickerMessage(message) {
     return;
   }
 
-  currentPriceElement.textContent = formatCurrency.format(price);
+  setAnimatedValue(currentPriceElement, formatCurrency.format(price), {
+    numericValue: price,
+    motionKey: "hero-current-price",
+  });
+  if (heroCurrentPriceElement && heroCurrentPriceElement !== currentPriceElement) {
+    setAnimatedValue(heroCurrentPriceElement, formatCurrency.format(price), {
+      numericValue: price,
+      motionKey: "hero-current-price-secondary",
+    });
+  }
   state.lastClose = price;
   updatePurchaseSummary();
   updateUsdCopBadge();
@@ -721,9 +816,15 @@ function updatePrice() {
     return;
   }
 
-  currentPriceElement.textContent = formatCurrency.format(last.close);
-  if (heroCurrentPriceElement) {
-    heroCurrentPriceElement.textContent = formatCurrency.format(last.close);
+  setAnimatedValue(currentPriceElement, formatCurrency.format(last.close), {
+    numericValue: last.close,
+    motionKey: "hero-current-price",
+  });
+  if (heroCurrentPriceElement && heroCurrentPriceElement !== currentPriceElement) {
+    setAnimatedValue(heroCurrentPriceElement, formatCurrency.format(last.close), {
+      numericValue: last.close,
+      motionKey: "hero-current-price-secondary",
+    });
   }
   updateHeroCopPrice();
   updateUsdCopBadge();
@@ -827,10 +928,19 @@ function updateHeroCopPrice() {
     return;
   }
 
-  heroCurrentPriceCopElement.textContent =
+  const content =
     Number.isFinite(state.lastClose) && Number.isFinite(state.usdCop)
       ? `Equivalente ${formatTableCop.format(state.lastClose * state.usdCop)} COP`
       : "Equivalente - COP";
+  const numericValue =
+    Number.isFinite(state.lastClose) && Number.isFinite(state.usdCop)
+      ? state.lastClose * state.usdCop
+      : null;
+
+  setAnimatedValue(heroCurrentPriceCopElement, content, {
+    numericValue,
+    motionKey: "hero-current-price-cop",
+  });
 }
 
 function updateUsdCopBadge() {
@@ -838,9 +948,16 @@ function updateUsdCopBadge() {
     return;
   }
 
-  priceChangeElement.textContent = Number.isFinite(state.usdCop)
-    ? `Hoy el dolar está en $ ${formatUsdCopRate.format(state.usdCop)} COP`
-    : "Hoy el dolar está en - COP";
+  setAnimatedValue(
+    priceChangeElement,
+    Number.isFinite(state.usdCop)
+      ? `Hoy el dolar está en $ ${formatUsdCopRate.format(state.usdCop)} COP`
+      : "Hoy el dolar está en - COP",
+    {
+      numericValue: state.usdCop,
+      motionKey: "usd-cop-badge",
+    },
+  );
   priceChangeElement.style.color = "var(--text-secondary)";
 }
 
@@ -850,7 +967,9 @@ function updateUsdCopTrendNote() {
   }
 
   if (!Number.isFinite(state.usdCop) || !Number.isFinite(state.usdCopPrevious)) {
-    priceChangeNoteElement.textContent = "Sin referencia frente a ayer.";
+    setAnimatedValue(priceChangeNoteElement, "Sin referencia frente a ayer.", {
+      motionKey: "usd-cop-note",
+    });
     priceChangeNoteElement.style.color = "var(--text-tertiary)";
     return;
   }
@@ -859,13 +978,23 @@ function updateUsdCopTrendNote() {
   const absoluteDifference = Math.round(Math.abs(difference));
 
   if (absoluteDifference === 0) {
-    priceChangeNoteElement.textContent = "Sigue igual que ayer hasta este momento.";
+    setAnimatedValue(priceChangeNoteElement, "Sigue igual que ayer hasta este momento.", {
+      numericValue: 0,
+      motionKey: "usd-cop-note",
+    });
     priceChangeNoteElement.style.color = "var(--text-tertiary)";
     return;
   }
 
   const wentUp = difference > 0;
-  priceChangeNoteElement.textContent = `${wentUp ? "Subió" : "Bajó"} $${formatUsdCopRate.format(absoluteDifference)} de ayer hasta este momento`;
+  setAnimatedValue(
+    priceChangeNoteElement,
+    `${wentUp ? "Subió" : "Bajó"} $${formatUsdCopRate.format(absoluteDifference)} de ayer hasta este momento`,
+    {
+      numericValue: difference,
+      motionKey: "usd-cop-note",
+    },
+  );
   priceChangeNoteElement.style.color = wentUp ? "var(--green)" : "var(--red)";
 }
 
@@ -1108,8 +1237,14 @@ function updateRangeReturn(visibleCandles = getVisibleCandles()) {
   const arrow = amount > 0 ? "↗" : amount < 0 ? "↘" : "→";
 
   rangeReturnElement.className = `range-return ${direction}`;
-  rangeReturnPercentElement.textContent = `${arrow} ${formatPercent(percent)}`;
-  rangeReturnAmountElement.textContent = `${amount >= 0 ? "+" : ""}${formatCurrency.format(amount)}`;
+  setAnimatedValue(rangeReturnPercentElement, `${arrow} ${formatPercent(percent)}`, {
+    numericValue: percent,
+    motionKey: "range-return-percent",
+  });
+  setAnimatedValue(rangeReturnAmountElement, `${amount >= 0 ? "+" : ""}${formatCurrency.format(amount)}`, {
+    numericValue: amount,
+    motionKey: "range-return-amount",
+  });
   rangeReturnLabelElement.textContent = rangePresets[state.range]?.label || "Rango";
 }
 
@@ -1119,8 +1254,8 @@ function setRangeReturnNeutral() {
   }
 
   rangeReturnElement.className = "range-return neutral";
-  rangeReturnPercentElement.textContent = "-";
-  rangeReturnAmountElement.textContent = "-";
+  setAnimatedValue(rangeReturnPercentElement, "-", { motionKey: "range-return-percent" });
+  setAnimatedValue(rangeReturnAmountElement, "-", { motionKey: "range-return-amount" });
   rangeReturnLabelElement.textContent = rangePresets[state.range]?.label || "Rango";
 }
 
@@ -1649,33 +1784,75 @@ updatePurchaseSummary = function () {
     currentValueUsd !== null && totalSpentUsd !== null ? currentValueUsd - totalSpentUsd : null;
   const profitPercent = profitUsd !== null && totalSpentUsd ? (profitUsd / totalSpentUsd) * 100 : null;
 
-  purchaseCountElement.textContent = state.summaryMasked
-    ? getMaskedSummaryText()
-    : String(state.purchases.length);
-  totalSpentElement.innerHTML = state.summaryMasked
-    ? formatMaskedKpiMoney("COP")
-    : Number.isFinite(totalSpent)
-      ? formatKpiMoney(totalSpent, formatTableCop, "COP")
-      : "-";
-  totalSpentUsdElement.innerHTML = state.summaryMasked
-    ? `Equivalente ${getMaskedSummaryText()} USD`
-    : totalSpentUsd !== null
-      ? `Equivalente ${formatKpiInlineMoney(totalSpentUsd, formatTableUsd, "USD")}`
-      : "Equivalente - USD";
-  totalBtcElement.textContent = state.summaryMasked
-    ? getMaskedSummaryText(8)
-    : formatBtc.format(totalBtc);
-  if (totalValueElement && totalValueUsdElement) {
-    totalValueElement.innerHTML = state.summaryMasked
+  setAnimatedValue(
+    purchaseCountElement,
+    state.summaryMasked ? getMaskedSummaryText() : String(state.purchases.length),
+    {
+      numericValue: state.summaryMasked ? null : state.purchases.length,
+      motionKey: "summary-purchase-count",
+    },
+  );
+  setAnimatedValue(
+    totalSpentElement,
+    state.summaryMasked
       ? formatMaskedKpiMoney("COP")
-      : Number.isFinite(currentValueCop)
-        ? formatKpiMoney(currentValueCop, formatTableCop, "COP")
-        : "-";
-    totalValueUsdElement.innerHTML = state.summaryMasked
+      : Number.isFinite(totalSpent)
+        ? formatKpiMoney(totalSpent, formatTableCop, "COP")
+        : "-",
+    {
+      mode: "html",
+      numericValue: state.summaryMasked ? null : totalSpent,
+      motionKey: "summary-total-spent",
+    },
+  );
+  setAnimatedValue(
+    totalSpentUsdElement,
+    state.summaryMasked
       ? `Equivalente ${getMaskedSummaryText()} USD`
-      : Number.isFinite(currentValueUsd)
-        ? `Equivalente ${formatKpiInlineMoney(currentValueUsd, formatTableUsd, "USD")}`
-        : "Equivalente - USD";
+      : totalSpentUsd !== null
+        ? `Equivalente ${formatKpiInlineMoney(totalSpentUsd, formatTableUsd, "USD")}`
+        : "Equivalente - USD",
+    {
+      mode: "html",
+      numericValue: state.summaryMasked ? null : totalSpentUsd,
+      motionKey: "summary-total-spent-usd",
+    },
+  );
+  setAnimatedValue(
+    totalBtcElement,
+    state.summaryMasked ? getMaskedSummaryText(8) : formatBtc.format(totalBtc),
+    {
+      numericValue: state.summaryMasked ? null : totalBtc,
+      motionKey: "summary-total-btc",
+    },
+  );
+  if (totalValueElement && totalValueUsdElement) {
+    setAnimatedValue(
+      totalValueElement,
+      state.summaryMasked
+        ? formatMaskedKpiMoney("COP")
+        : Number.isFinite(currentValueCop)
+          ? formatKpiMoney(currentValueCop, formatTableCop, "COP")
+          : "-",
+      {
+        mode: "html",
+        numericValue: state.summaryMasked ? null : currentValueCop,
+        motionKey: "summary-total-value",
+      },
+    );
+    setAnimatedValue(
+      totalValueUsdElement,
+      state.summaryMasked
+        ? `Equivalente ${getMaskedSummaryText()} USD`
+        : Number.isFinite(currentValueUsd)
+          ? `Equivalente ${formatKpiInlineMoney(currentValueUsd, formatTableUsd, "USD")}`
+          : "Equivalente - USD",
+      {
+        mode: "html",
+        numericValue: state.summaryMasked ? null : currentValueUsd,
+        motionKey: "summary-total-value-usd",
+      },
+    );
   }
   updateProfitCard(profitCop, profitUsd, profitPercent);
   updateSimulationPanel();
@@ -1694,11 +1871,19 @@ updateProfitCard = function (profitCop, profitUsd, profitPercent) {
       : "negative-value";
 
   totalProfitCopElement.className = profitClass;
-  totalProfitCopElement.innerHTML = state.summaryMasked
-    ? formatMaskedKpiMoney("COP")
-    : Number.isFinite(profitCop)
-      ? formatKpiMoney(profitCop, formatTableCop, "COP", true)
-      : "-";
+  setAnimatedValue(
+    totalProfitCopElement,
+    state.summaryMasked
+      ? formatMaskedKpiMoney("COP")
+      : Number.isFinite(profitCop)
+        ? formatKpiMoney(profitCop, formatTableCop, "COP", true)
+        : "-",
+    {
+      mode: "html",
+      numericValue: state.summaryMasked ? null : profitCop,
+      motionKey: "summary-total-profit-cop",
+    },
+  );
 
   const profitUsdLabel = state.summaryMasked
     ? `${getMaskedSummaryText()} USD`
@@ -1713,7 +1898,10 @@ updateProfitCard = function (profitCop, profitUsd, profitPercent) {
       : "- %";
 
   totalProfitUsdElement.className = profitClass;
-  totalProfitUsdElement.textContent = `${profitUsdLabel} · ${profitPercentLabel}`;
+  setAnimatedValue(totalProfitUsdElement, `${profitUsdLabel} · ${profitPercentLabel}`, {
+    numericValue: state.summaryMasked ? null : profitUsd,
+    motionKey: "summary-total-profit-usd",
+  });
 };
 function formatKpiMoney(value, formatter, currencyCode, showSign = false) {
   return `<span class="kpi-money">${formatMetricNumber(value, formatter, showSign)}<em>${currencyCode}</em></span>`;
@@ -1824,23 +2012,35 @@ function updateSimulationPanel() {
         ? "negative"
         : "neutral";
 
-  simulationCurrentPriceUsdElement.textContent = currentPriceUsd !== null
-    ? `${formatTableUsd.format(currentPriceUsd)} USD`
-    : "-";
-  simulationCurrentPriceCopElement.textContent = currentPriceCop !== null
-    ? `${formatTableCop.format(currentPriceCop)} COP`
-    : "-";
-  simulationTargetPriceUsdElement.textContent = targetPriceUsd !== null
-    ? `${formatTableUsd.format(targetPriceUsd)} USD`
-    : "-";
-  simulationTargetPriceCopElement.textContent = targetPriceCop !== null
-    ? `${formatTableCop.format(targetPriceCop)} COP`
-    : "-";
+  setAnimatedValue(
+    simulationCurrentPriceUsdElement,
+    currentPriceUsd !== null ? `${formatTableUsd.format(currentPriceUsd)} USD` : "-",
+    { numericValue: currentPriceUsd, motionKey: "simulation-current-usd" },
+  );
+  setAnimatedValue(
+    simulationCurrentPriceCopElement,
+    currentPriceCop !== null ? `${formatTableCop.format(currentPriceCop)} COP` : "-",
+    { numericValue: currentPriceCop, motionKey: "simulation-current-cop" },
+  );
+  setAnimatedValue(
+    simulationTargetPriceUsdElement,
+    targetPriceUsd !== null ? `${formatTableUsd.format(targetPriceUsd)} USD` : "-",
+    { numericValue: targetPriceUsd, motionKey: "simulation-target-usd" },
+  );
+  setAnimatedValue(
+    simulationTargetPriceCopElement,
+    targetPriceCop !== null ? `${formatTableCop.format(targetPriceCop)} COP` : "-",
+    { numericValue: targetPriceCop, motionKey: "simulation-target-cop" },
+  );
 
   simulationDeltaBadgeElement.className = `simulation-delta-badge ${deltaClass}`;
-  simulationDeltaBadgeElement.textContent = Number.isFinite(deltaUsd)
-    ? `${deltaUsd > 0 ? "▲" : deltaUsd < 0 ? "▼" : "•"} ${formatTableUsd.format(Math.abs(deltaUsd))} ${deltaUsd === 0 ? "igual" : formatPercent(Math.abs(deltaPercent)).replace(" %", "%")}`
-    : "Sin cambio";
+  setAnimatedValue(
+    simulationDeltaBadgeElement,
+    Number.isFinite(deltaUsd)
+      ? `${deltaUsd > 0 ? "▲" : deltaUsd < 0 ? "▼" : "•"} ${formatTableUsd.format(Math.abs(deltaUsd))} ${deltaUsd === 0 ? "igual" : formatPercent(Math.abs(deltaPercent)).replace(" %", "%")}`
+      : "Sin cambio",
+    { numericValue: deltaUsd, motionKey: "simulation-delta-badge" },
+  );
   simulationScenarioHintElement.textContent = Number.isFinite(deltaUsd)
     ? deltaUsd > 0
       ? "Escenario alcista: este precio esta por encima del BTC actual."
@@ -1869,20 +2069,36 @@ function updateSimulationPanel() {
   }
 
   simulationValueCopElement.className = profitClass;
-  simulationValueCopElement.textContent = Number.isFinite(metrics.currentValueCop)
-    ? `${formatTableCop.format(metrics.currentValueCop)} COP`
-    : "-";
-  simulationValueUsdElement.textContent = Number.isFinite(metrics.currentValueUsd)
-    ? `Equivalente ${formatTableUsd.format(metrics.currentValueUsd)} USD`
-    : "Equivalente - USD";
+  setAnimatedValue(
+    simulationValueCopElement,
+    Number.isFinite(metrics.currentValueCop)
+      ? `${formatTableCop.format(metrics.currentValueCop)} COP`
+      : "-",
+    { numericValue: metrics.currentValueCop, motionKey: "simulation-value-cop" },
+  );
+  setAnimatedValue(
+    simulationValueUsdElement,
+    Number.isFinite(metrics.currentValueUsd)
+      ? `Equivalente ${formatTableUsd.format(metrics.currentValueUsd)} USD`
+      : "Equivalente - USD",
+    { numericValue: metrics.currentValueUsd, motionKey: "simulation-value-usd" },
+  );
 
   simulationProfitCopElement.className = profitClass;
-  simulationProfitCopElement.textContent = Number.isFinite(metrics.profitCop)
-    ? `${metrics.profitCop >= 0 ? "+" : "-"}${formatTableCop.format(Math.abs(metrics.profitCop))} COP`
-    : "-";
-  simulationProfitUsdElement.textContent = Number.isFinite(metrics.profitUsd)
-    ? `${metrics.profitUsd >= 0 ? "+" : "-"}${formatTableUsd.format(Math.abs(metrics.profitUsd))} USD · ${formatSignedPercent(metrics.profitPercent)}`
-    : "-";
+  setAnimatedValue(
+    simulationProfitCopElement,
+    Number.isFinite(metrics.profitCop)
+      ? `${metrics.profitCop >= 0 ? "+" : "-"}${formatTableCop.format(Math.abs(metrics.profitCop))} COP`
+      : "-",
+    { numericValue: metrics.profitCop, motionKey: "simulation-profit-cop" },
+  );
+  setAnimatedValue(
+    simulationProfitUsdElement,
+    Number.isFinite(metrics.profitUsd)
+      ? `${metrics.profitUsd >= 0 ? "+" : "-"}${formatTableUsd.format(Math.abs(metrics.profitUsd))} USD · ${formatSignedPercent(metrics.profitPercent)}`
+      : "-",
+    { numericValue: metrics.profitUsd, motionKey: "simulation-profit-usd" },
+  );
   if (simulationEquilibriumMarkerElement && simulationPriceRangeInput) {
     const min = Number(simulationPriceRangeInput.min || 10000);
     const max = Number(simulationPriceRangeInput.max || 300000);
@@ -2159,6 +2375,8 @@ function renderPurchaseList() {
       </table>
     </div>
   `;
+
+  syncAnimatedNodes(purchaseList);
 }
 
 function renderPurchaseRow(purchase) {
@@ -2172,11 +2390,11 @@ function renderPurchaseRow(purchase) {
   return `
     <tr>
       <td>${formatPurchaseDate(purchase.date)}</td>
-      <td>${formatBtcPriceStack(metrics.purchaseBtcPriceUsd, metrics.purchaseBtcPriceCop)}</td>
-      <td>${formatBtc.format(purchase.btc)}</td>
-      <td class="${profitClass}">${formatMoneyStack(metrics.profitCop, metrics.profitUsd, true)}</td>
-      <td class="${profitClass}">${formatSignedPercent(metrics.returnPercent)}</td>
-      <td>${formatMoneyStack(metrics.currentValueCop, metrics.currentValueUsd)}</td>
+      <td data-motion-key="purchase-price-${purchase.id}" data-motion-value="${Number.isFinite(metrics.purchaseBtcPriceCop) ? metrics.purchaseBtcPriceCop : ""}">${formatBtcPriceStack(metrics.purchaseBtcPriceUsd, metrics.purchaseBtcPriceCop)}</td>
+      <td data-motion-key="purchase-btc-${purchase.id}" data-motion-value="${Number.isFinite(purchase.btc) ? purchase.btc : ""}">${formatBtc.format(purchase.btc)}</td>
+      <td class="${profitClass}" data-motion-key="purchase-profit-${purchase.id}" data-motion-value="${Number.isFinite(metrics.profitCop) ? metrics.profitCop : ""}">${formatMoneyStack(metrics.profitCop, metrics.profitUsd, true)}</td>
+      <td class="${profitClass}" data-motion-key="purchase-return-${purchase.id}" data-motion-value="${Number.isFinite(metrics.returnPercent) ? metrics.returnPercent : ""}">${formatSignedPercent(metrics.returnPercent)}</td>
+      <td data-motion-key="purchase-value-${purchase.id}" data-motion-value="${Number.isFinite(metrics.currentValueCop) ? metrics.currentValueCop : ""}">${formatMoneyStack(metrics.currentValueCop, metrics.currentValueUsd)}</td>
       <td>
         <button class="purchase-delete" type="button" data-purchase-id="${purchase.id}" aria-label="Eliminar compra">X</button>
       </td>
@@ -2957,37 +3175,79 @@ function updatePurchaseSummary() {
     currentValueUsd !== null && totalSpentUsd !== null ? currentValueUsd - totalSpentUsd : null;
   const profitPercent = profitUsd !== null && totalSpentUsd ? (profitUsd / totalSpentUsd) * 100 : null;
 
-  purchaseCountElement.textContent = state.summaryMasked
-    ? getMaskedSummaryText()
-    : String(state.purchases.length);
+  setAnimatedValue(
+    purchaseCountElement,
+    state.summaryMasked ? getMaskedSummaryText() : String(state.purchases.length),
+    {
+      numericValue: state.summaryMasked ? null : state.purchases.length,
+      motionKey: "summary-purchase-count",
+    },
+  );
 
-  totalSpentElement.innerHTML = state.summaryMasked
-    ? formatMaskedKpiMoney("COP")
-    : Number.isFinite(totalSpent)
-      ? formatKpiMoney(totalSpent, formatTableCop, "COP")
-      : "-";
+  setAnimatedValue(
+    totalSpentElement,
+    state.summaryMasked
+      ? formatMaskedKpiMoney("COP")
+      : Number.isFinite(totalSpent)
+        ? formatKpiMoney(totalSpent, formatTableCop, "COP")
+        : "-",
+    {
+      mode: "html",
+      numericValue: state.summaryMasked ? null : totalSpent,
+      motionKey: "summary-total-spent",
+    },
+  );
 
-  totalSpentUsdElement.innerHTML = state.summaryMasked
-    ? `Equivalente ${getMaskedSummaryText()} USD`
-    : totalSpentUsd !== null
-      ? `Equivalente ${formatKpiInlineMoney(totalSpentUsd, formatTableUsd, "USD")}`
-      : "Equivalente - USD";
+  setAnimatedValue(
+    totalSpentUsdElement,
+    state.summaryMasked
+      ? `Equivalente ${getMaskedSummaryText()} USD`
+      : totalSpentUsd !== null
+        ? `Equivalente ${formatKpiInlineMoney(totalSpentUsd, formatTableUsd, "USD")}`
+        : "Equivalente - USD",
+    {
+      mode: "html",
+      numericValue: state.summaryMasked ? null : totalSpentUsd,
+      motionKey: "summary-total-spent-usd",
+    },
+  );
 
-  totalBtcElement.textContent = state.summaryMasked
-    ? getMaskedSummaryText(8)
-    : formatBtc.format(totalBtc);
+  setAnimatedValue(
+    totalBtcElement,
+    state.summaryMasked ? getMaskedSummaryText(8) : formatBtc.format(totalBtc),
+    {
+      numericValue: state.summaryMasked ? null : totalBtc,
+      motionKey: "summary-total-btc",
+    },
+  );
 
   if (totalValueElement && totalValueUsdElement) {
-    totalValueElement.innerHTML = state.summaryMasked
-      ? formatMaskedKpiMoney("COP")
-      : Number.isFinite(currentValueCop)
-        ? formatKpiMoney(currentValueCop, formatTableCop, "COP")
-        : "-";
-    totalValueUsdElement.innerHTML = state.summaryMasked
-      ? `Equivalente ${getMaskedSummaryText()} USD`
-      : Number.isFinite(currentValueUsd)
-        ? `Equivalente ${formatKpiInlineMoney(currentValueUsd, formatTableUsd, "USD")}`
-        : "Equivalente - USD";
+    setAnimatedValue(
+      totalValueElement,
+      state.summaryMasked
+        ? formatMaskedKpiMoney("COP")
+        : Number.isFinite(currentValueCop)
+          ? formatKpiMoney(currentValueCop, formatTableCop, "COP")
+          : "-",
+      {
+        mode: "html",
+        numericValue: state.summaryMasked ? null : currentValueCop,
+        motionKey: "summary-total-value",
+      },
+    );
+    setAnimatedValue(
+      totalValueUsdElement,
+      state.summaryMasked
+        ? `Equivalente ${getMaskedSummaryText()} USD`
+        : Number.isFinite(currentValueUsd)
+          ? `Equivalente ${formatKpiInlineMoney(currentValueUsd, formatTableUsd, "USD")}`
+          : "Equivalente - USD",
+      {
+        mode: "html",
+        numericValue: state.summaryMasked ? null : currentValueUsd,
+        motionKey: "summary-total-value-usd",
+      },
+    );
   }
 
   updateProfitCard(profitCop, profitUsd, profitPercent);
@@ -3007,11 +3267,19 @@ function updateProfitCard(profitCop, profitUsd, profitPercent) {
       : "negative-value";
 
   totalProfitCopElement.className = profitClass;
-  totalProfitCopElement.innerHTML = state.summaryMasked
-    ? formatMaskedKpiMoney("COP")
-    : Number.isFinite(profitCop)
-      ? formatKpiMoney(profitCop, formatTableCop, "COP", true)
-      : "-";
+  setAnimatedValue(
+    totalProfitCopElement,
+    state.summaryMasked
+      ? formatMaskedKpiMoney("COP")
+      : Number.isFinite(profitCop)
+        ? formatKpiMoney(profitCop, formatTableCop, "COP", true)
+        : "-",
+    {
+      mode: "html",
+      numericValue: state.summaryMasked ? null : profitCop,
+      motionKey: "summary-total-profit-cop",
+    },
+  );
 
   const profitUsdLabel = state.summaryMasked
     ? `${getMaskedSummaryText()} USD`
@@ -3026,7 +3294,10 @@ function updateProfitCard(profitCop, profitUsd, profitPercent) {
       : "- %";
 
   totalProfitUsdElement.className = profitClass;
-  totalProfitUsdElement.textContent = `${profitUsdLabel} · ${profitPercentLabel}`;
+  setAnimatedValue(totalProfitUsdElement, `${profitUsdLabel} · ${profitPercentLabel}`, {
+    numericValue: state.summaryMasked ? null : profitUsd,
+    motionKey: "summary-total-profit-usd",
+  });
 }
 
 async function start() {

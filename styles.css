@@ -465,6 +465,84 @@ body.profile-gate-open .shell {
   letter-spacing: -0.01em;
 }
 
+.value-motion {
+  will-change: transform, filter, opacity, text-shadow;
+  transform-origin: center;
+  backface-visibility: hidden;
+}
+
+.value-motion-up {
+  animation: valueSlotUp 0.68s cubic-bezier(0.2, 0.9, 0.22, 1);
+}
+
+.value-motion-down {
+  animation: valueSlotDown 0.68s cubic-bezier(0.2, 0.9, 0.22, 1);
+}
+
+.value-motion-neutral {
+  animation: valueSlotNeutral 0.5s ease;
+}
+
+@keyframes valueSlotUp {
+  0% {
+    opacity: 0.25;
+    filter: blur(10px);
+    transform: translateY(16px) scale(0.96) skewY(4deg);
+    text-shadow: 0 0 0 rgba(52, 199, 89, 0);
+  }
+  35% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(-6px) scale(1.035);
+    text-shadow: 0 0 26px rgba(52, 199, 89, 0.35);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+    text-shadow: 0 0 0 rgba(52, 199, 89, 0);
+  }
+}
+
+@keyframes valueSlotDown {
+  0% {
+    opacity: 0.25;
+    filter: blur(10px);
+    transform: translateY(-16px) scale(0.96) skewY(-4deg);
+    text-shadow: 0 0 0 rgba(255, 59, 48, 0);
+  }
+  35% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(6px) scale(1.035);
+    text-shadow: 0 0 26px rgba(255, 59, 48, 0.34);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+    text-shadow: 0 0 0 rgba(255, 59, 48, 0);
+  }
+}
+
+@keyframes valueSlotNeutral {
+  0% {
+    opacity: 0.45;
+    filter: blur(8px);
+    transform: scale(0.97);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+
 .news-card {
   display: grid;
   gap: 10px;
