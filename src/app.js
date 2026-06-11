@@ -81,9 +81,7 @@ const deletePurchaseConfirm = document.querySelector("#deletePurchaseConfirm");
 const context = chartCanvas.getContext("2d");
 const purchasesStorageKey = "btc-dashboard-purchases";
 const purchasesApiBase = "/api/profiles";
-const activeProfileStorageKey = "btc-dashboard-active-profile";
-const authenticatedProfileStorageKey = "btc-dashboard-auth-profile";
-const profileAutoLoginStorageKey = "btc-dashboard-profile-autologin";
+const authApiBase = "/api/auth";
 const summaryVisibilityStorageKey = "btc-dashboard-summary-masked";
 const usdCopStorageKey = "btc-dashboard-usd-cop";
 const newsStorageKey = "btc-dashboard-catano-feed";
@@ -186,10 +184,6 @@ const chartFont =
 const profileCatalog = {
   jesus: { id: "jesus", name: "Jesus" },
   alzate: { id: "alzate", name: "Alzate" },
-};
-const profilePasswords = {
-  jesus: "123",
-  alzate: "sabe",
 };
 const profilePurchaseBundles =
   window.__BTC_PROFILE_PURCHASES__ ||
@@ -1878,10 +1872,12 @@ async function loadPurchases() {
 async function fetchProfilePurchases(profileId) {
   const response = await fetch(`${purchasesApiBase}/${profileId}/purchases`, {
     cache: "no-store",
+    credentials: "same-origin",
   });
 
   if (!response.ok) {
-    throw new Error("No se pudo cargar el historial compartido");
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "No se pudo cargar el historial compartido");
   }
 
   const payload = await response.json();
@@ -1894,11 +1890,13 @@ async function replaceProfilePurchases(profileId, purchases) {
     headers: {
       "content-type": "application/json",
     },
+    credentials: "same-origin",
     body: JSON.stringify({ purchases }),
   });
 
   if (!response.ok) {
-    throw new Error("No se pudo sincronizar el historial de compras");
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "No se pudo sincronizar el historial de compras");
   }
 }
 
@@ -1908,11 +1906,13 @@ async function createProfilePurchase(profileId, purchase) {
     headers: {
       "content-type": "application/json",
     },
+    credentials: "same-origin",
     body: JSON.stringify({ purchase }),
   });
 
   if (!response.ok) {
-    throw new Error("No se pudo guardar la compra");
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "No se pudo guardar la compra");
   }
 
   const payload = await response.json();
@@ -1922,10 +1922,12 @@ async function createProfilePurchase(profileId, purchase) {
 async function removeProfilePurchase(profileId, purchaseId) {
   const response = await fetch(`${purchasesApiBase}/${profileId}/purchases/${purchaseId}`, {
     method: "DELETE",
+    credentials: "same-origin",
   });
 
   if (!response.ok) {
-    throw new Error("No se pudo eliminar la compra");
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "No se pudo eliminar la compra");
   }
 }
 
@@ -2196,6 +2198,11 @@ function formatPurchaseDate(date) {
 async function addPurchase(event) {
   event.preventDefault();
 
+  if (!state.activeProfileId) {
+    alert("Primero inicia sesión en un perfil para poder registrar compras.");
+    return;
+  }
+
   const btc = parseBtcValue(purchaseBtcInput.value);
   const date = purchaseDateInput.value;
   const priceUsd = parseMoneyValue(purchaseUsdInput.value);
@@ -2459,51 +2466,77 @@ function updateProfileSessionUI() {
   });
 }
 
-function restoreProfileSession() {
-  const savedProfileId = localStorage.getItem(activeProfileStorageKey);
-  const authenticatedProfileId = sessionStorage.getItem(authenticatedProfileStorageKey);
-  const canAutoLogin = localStorage.getItem(profileAutoLoginStorageKey) === "true";
-  state.activeProfileId =
-    canAutoLogin && profileCatalog[savedProfileId] && savedProfileId === authenticatedProfileId
-      ? savedProfileId
-      : null;
-  if (!state.activeProfileId) {
-    localStorage.removeItem(activeProfileStorageKey);
-    sessionStorage.removeItem(authenticatedProfileStorageKey);
-    localStorage.removeItem(profileAutoLoginStorageKey);
+async function restoreProfileSession() {
+  try {
+    const response = await fetch(`${authApiBase}/session`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      state.activeProfileId = null;
+      updateProfileSessionUI();
+      updateProfileAuthUI();
+      return;
+    }
+
+    const payload = await response.json();
+    state.activeProfileId =
+      payload?.authenticated && profileCatalog[payload?.profile?.id] ? payload.profile.id : null;
+  } catch {
+    state.activeProfileId = null;
   }
+
   updateProfileSessionUI();
   updateProfileAuthUI();
 }
 
-async function loginProfile(profileId) {
+async function loginProfile(profileId, password) {
   if (!profileCatalog[profileId]) {
     return;
   }
 
+  const response = await fetch(`${authApiBase}/login`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      profileId,
+      password,
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "No se pudo iniciar sesion");
+  }
+
+  const payload = await response.json();
   state.activeProfileId = profileId;
   state.pendingProfileId = null;
   state.profileGateVisible = false;
   closeSimulationModal();
   resetSimulationToLivePrice();
-  localStorage.setItem(activeProfileStorageKey, profileId);
-  sessionStorage.setItem(authenticatedProfileStorageKey, profileId);
-  localStorage.setItem(profileAutoLoginStorageKey, "true");
+  state.activeProfileId = profileCatalog[payload?.profile?.id] ? payload.profile.id : profileId;
   updateProfileSessionUI();
   updateProfileAuthUI();
   await loadPurchases();
   draw();
 }
 
-function logoutProfile() {
+async function logoutProfile() {
   state.activeProfileId = null;
   state.pendingProfileId = null;
   state.purchases = [];
   closeSimulationModal();
   resetSimulationToLivePrice();
-  localStorage.removeItem(activeProfileStorageKey);
-  sessionStorage.removeItem(authenticatedProfileStorageKey);
-  localStorage.removeItem(profileAutoLoginStorageKey);
+
+  try {
+    await fetch(`${authApiBase}/logout`, {
+      method: "POST",
+    });
+  } catch {}
+
   updatePurchaseSummary();
   updateProfileSessionUI();
   updateProfileAuthUI();
@@ -2541,17 +2574,16 @@ function attachEvents() {
       return;
     }
 
-    if (password !== profilePasswords[pendingProfileId]) {
-      setProfileAuthFeedback("Contraseña incorrecta. Intenta de nuevo.", "is-error");
+    try {
+      setProfileAuthFeedback("");
+      await loginProfile(pendingProfileId, password);
+    } catch (error) {
+      setProfileAuthFeedback(error.message || "Contraseña incorrecta. Intenta de nuevo.", "is-error");
       if (profilePasswordInput) {
         profilePasswordInput.value = "";
         profilePasswordInput.focus();
       }
-      return;
     }
-
-    setProfileAuthFeedback("");
-    await loginProfile(pendingProfileId);
   });
   openSimulationModalButton?.addEventListener("click", openSimulationModal);
   simulationModalClose?.addEventListener("click", closeSimulationModal);
@@ -2909,9 +2941,9 @@ async function start() {
 }
 
 async function main() {
-  restoreProfileSession();
   restoreSummaryVisibility();
   attachEvents();
+  await restoreProfileSession();
   updateActiveView();
   resetSimulationToLivePrice();
   setDefaultPurchaseDate();
