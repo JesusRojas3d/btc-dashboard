@@ -287,29 +287,28 @@ function renderSlotText(element, nextText, previousText, direction) {
   element.replaceChildren(createSlotFragment(nextText, previousText, direction));
 }
 
-function renderSlotHtml(element, nextHtml, previousText, direction) {
-  const template = document.createElement("template");
-  template.innerHTML = String(nextHtml ?? "");
-  let textOffset = 0;
+function setStaticValue(element, content, mode) {
+  element.classList.remove("slot-value");
 
-  const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
-  const textNodes = [];
-  let textNode = walker.nextNode();
+  if (mode === "html") {
+    element.innerHTML = content;
+  } else {
+    element.textContent = content;
+  }
+}
 
-  while (textNode) {
-    textNodes.push(textNode);
-    textNode = walker.nextNode();
+function scheduleSlotCleanup(element, content, motionKey) {
+  if (element.__slotCleanupTimer) {
+    clearTimeout(element.__slotCleanupTimer);
   }
 
-  textNodes.forEach((node) => {
-    const text = node.textContent ?? "";
-    const fragment = createSlotFragment(text, previousText, direction, textOffset);
-    textOffset += Array.from(text).length;
-    node.replaceWith(fragment);
-  });
+  element.__slotCleanupTimer = setTimeout(() => {
+    if (valueMotionCache.get(motionKey)?.content !== content) {
+      return;
+    }
 
-  element.classList.add("slot-value");
-  element.replaceChildren(template.content);
+    setStaticValue(element, content, "text");
+  }, 620);
 }
 
 function setAnimatedValue(element, nextContent, options = {}) {
@@ -338,18 +337,8 @@ function setAnimatedValue(element, nextContent, options = {}) {
   const direction = resolveMotionDirection(previousMotion?.value, normalizedValue);
 
   if (!motionKey) {
-    if (mode === "html") {
-      element.innerHTML = normalizedContent;
-    } else {
-      element.textContent = normalizedContent;
-    }
+    setStaticValue(element, normalizedContent, mode);
     return;
-  }
-
-  if (mode === "html") {
-    renderSlotHtml(element, normalizedContent, previousDisplayText, direction);
-  } else {
-    renderSlotText(element, normalizedContent, previousDisplayText, direction);
   }
 
   valueMotionCache.set(motionKey, {
@@ -358,9 +347,13 @@ function setAnimatedValue(element, nextContent, options = {}) {
     value: normalizedValue,
   });
 
-  if (!contentChanged) {
+  if (mode === "html" || !previousMotion || !contentChanged || direction === "neutral") {
+    setStaticValue(element, normalizedContent, mode);
     return;
   }
+
+  renderSlotText(element, normalizedContent, previousDisplayText, direction);
+  scheduleSlotCleanup(element, normalizedContent, motionKey);
 }
 
 function syncAnimatedNodes(rootElement = document) {

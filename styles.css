@@ -477,11 +477,11 @@ body.profile-gate-open .shell {
 }
 
 .slot-character-number {
-  min-width: 0.58em;
-  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .slot-character-animated {
+  width: 0.58em;
   min-width: 0.58em;
   text-align: center;
 }
@@ -945,7 +945,7 @@ h1 {
   color: var(--green);
 }
 
-.range-return.positive span {
+.range-return.positive > span {
   background: rgba(31, 122, 82, 0.1);
 }
 
@@ -953,11 +953,11 @@ h1 {
   color: var(--red);
 }
 
-.range-return.negative span {
+.range-return.negative > span {
   background: rgba(180, 58, 69, 0.1);
 }
 
-.range-return.neutral span {
+.range-return.neutral > span {
   background: rgba(29, 29, 31, 0.06);
 }
 
