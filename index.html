@@ -1,0 +1,419 @@
+﻿<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BTC Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar">
+        <div class="sidebar-card sidebar-brand">
+          <div class="sidebar-profile-meta">
+            <div class="sidebar-card-head">
+              <span class="sidebar-card-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                  <path d="M20 21a8 8 0 0 0-16 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                  <circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8" />
+                </svg>
+              </span>
+              <span class="label">Perfil activo</span>
+            </div>
+            <strong id="activeProfileName">Sin sesión</strong>
+          </div>
+
+          <button type="button" class="session-button is-primary" id="switchProfileButton">
+            Cambiar perfil
+          </button>
+          <button type="button" class="session-button" id="logoutButton" hidden>
+            Cerrar sesión
+          </button>
+        </div>
+
+        <nav class="sidebar-card sidebar-nav" aria-label="Secciones">
+          <button type="button" class="sidebar-nav-button active" aria-current="page">
+            <span class="sidebar-nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="M4 20h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <path d="M7 20V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <path d="M12 20V6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <path d="M17 20v-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+            </span>
+            <span>Dashboard</span>
+          </button>
+          <button
+            type="button"
+            class="sidebar-nav-button sidebar-nav-button-accent"
+            id="openSimulationModalButton"
+            aria-haspopup="dialog"
+            aria-pressed="false"
+          >
+            <span class="sidebar-nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="M4 12h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <circle cx="17" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8" />
+                <path d="M17 5v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <path d="M17 15v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <path d="M14 9l2 2 3-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span>Simulación</span>
+          </button>
+        </nav>
+      </aside>
+
+      <div class="content-shell">
+        <section class="view-panel is-active" data-view-panel="dashboard">
+          <section class="overview-dock" id="overviewDock">
+            <div class="overview-dock-shell">
+              <section class="hero">
+                <div class="hero-spotlight" aria-live="polite">
+                  <div class="hero-spotlight-header">
+                    <span class="hero-btc-icon">
+                      <img src="./favicon.svg" alt="Bitcoin" />
+                    </span>
+                    <div>
+                      <p class="eyebrow">Bitcoin en vivo</p>
+                      <strong>BTC / USD</strong>
+                    </div>
+                  </div>
+
+                  <div class="hero-spotlight-body">
+                    <h1 id="heroCurrentPrice">Cargando...</h1>
+                    <p id="heroCurrentPriceCop" class="subtitle">Equivalente - COP</p>
+                    <span id="priceChange" class="hero-price-change muted">Esperando datos</span>
+                  </div>
+                </div>
+
+                <aside class="news-card" aria-labelledby="newsTitle">
+                  <div class="news-card-header">
+                    <div>
+                      <p class="eyebrow">Noticias destacadas</p>
+                      <h3 id="newsTitle">Mercado BTC</h3>
+                    </div>
+                    <small id="newsUpdatedAt">Cargando feed...</small>
+                  </div>
+
+                  <div class="news-list" id="newsList" aria-live="polite">
+                    <div class="news-empty">Cargando los tuits de Catano...</div>
+                  </div>
+                </aside>
+              </section>
+
+              <section class="summary-grid">
+                <div class="summary-grid-toolbar">
+                  <button
+                    type="button"
+                    class="summary-visibility-button"
+                    id="summaryVisibilityButton"
+                    aria-pressed="false"
+                    aria-label="Ocultar cifras del resumen"
+                  >
+                    <span class="summary-visibility-icon" id="summaryVisibilityIcon">Ojo</span>
+                    <span id="summaryVisibilityLabel">Ocultar cifras</span>
+                  </button>
+                </div>
+                <article>
+                  <span class="label">Compras cargadas</span>
+                  <strong id="purchaseCount">0</strong>
+                  <small>Compras realizadas</small>
+                </article>
+                <article>
+                  <span class="label">Invertido COP</span>
+                  <strong id="totalSpent">$0</strong>
+                  <small id="totalSpentUsd">Equivalente USD -</small>
+                </article>
+                <article>
+                  <span class="label">BTC acumulado</span>
+                  <strong id="totalBtc">0.00000000</strong>
+                  <small>Cantidad exacta acumulada</small>
+                </article>
+                <article class="summary-highlight">
+                  <span class="label">Valor</span>
+                  <strong id="totalValue">$0</strong>
+                  <small id="totalValueUsd">Equivalente - USD</small>
+                </article>
+                <article>
+                  <span class="label">Ganancia / pérdida</span>
+                  <strong id="totalProfitCop">$0</strong>
+                  <small id="totalProfitUsd">USD - · - %</small>
+                </article>
+              </section>
+            </div>
+          </section>
+
+          <section class="toolbar" aria-label="Controles del gráfico">
+            <div class="timeframes" id="timeframes">
+              <button type="button" data-range="realtime">Tiempo real</button>
+              <button type="button" data-range="1d">1D</button>
+              <button type="button" data-range="5d">5D</button>
+              <button type="button" data-range="1m" class="active">1M</button>
+              <button type="button" data-range="6m">6M</button>
+              <button type="button" data-range="1y">1A</button>
+              <button type="button" data-range="2y">2A</button>
+              <button type="button" data-range="3y">3A</button>
+              <button type="button" data-range="5y">5A</button>
+              <button type="button" data-range="10y">10A</button>
+              <button type="button" data-range="all">Todo</button>
+            </div>
+
+            <div class="toolbar-meta">
+              <div class="purchase-view-switch" aria-label="Vista de compras">
+                <button type="button" class="active" data-purchase-view="markers">Marcadores</button>
+                <button type="button" data-purchase-view="bands">Franjas</button>
+              </div>
+
+              <div id="rangeReturn" class="range-return neutral">
+                <span id="rangeReturnPercent">-</span>
+                <strong id="rangeReturnAmount">-</strong>
+                <small id="rangeReturnLabel">Rango</small>
+              </div>
+
+              <div class="status">
+                <span id="connectionDot" class="dot"></span>
+                <span id="connectionStatus">Conectando</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="chart-card">
+            <canvas id="btcChart" aria-label="Gráfico de velas de Bitcoin"></canvas>
+          </section>
+
+          <section class="purchase-panel" aria-labelledby="purchaseTitle">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Registro</p>
+                <h2 id="purchaseTitle">Compras de Bitcoin</h2>
+              </div>
+            </div>
+
+            <form id="purchaseForm" class="purchase-form">
+              <label>
+                <span>Cantidad BTC</span>
+                <input
+                  id="purchaseBtc"
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  required
+                />
+              </label>
+
+              <label>
+                <span>Fecha de compra</span>
+                <input id="purchaseDate" type="date" required />
+              </label>
+
+              <label>
+                <span>Precio BTC de compra</span>
+                <input
+                  id="purchaseUsd"
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  required
+                />
+              </label>
+
+              <button type="submit">Registrar compra</button>
+            </form>
+
+            <div class="purchase-list" id="purchaseList" aria-live="polite"></div>
+          </section>
+        </section>
+
+      </div>
+
+      <dialog class="confirm-modal" id="deletePurchaseModal" aria-labelledby="deletePurchaseModalTitle">
+        <form method="dialog" class="confirm-modal-card">
+          <p class="eyebrow">Advertencia</p>
+          <h2 id="deletePurchaseModalTitle">¿Deseas borrar esta mierda?</h2>
+          <p class="confirm-modal-copy">Esta compra se eliminará del historial cargado.</p>
+          <div class="confirm-modal-actions">
+            <button type="button" class="confirm-cancel" id="deletePurchaseCancel">Cancelar</button>
+            <button type="submit" class="confirm-delete" id="deletePurchaseConfirm" value="confirm">
+              Borrar compra
+            </button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog class="simulation-modal" id="simulationModal" aria-labelledby="simulationModalTitle">
+        <div class="simulation-modal-shell">
+          <button type="button" class="simulation-modal-close" id="simulationModalClose" aria-label="Cerrar simulación">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="M6.4 6.4a1 1 0 0 1 1.4 0L12 10.6l4.2-4.2a1 1 0 1 1 1.4 1.4L13.4 12l4.2 4.2a1 1 0 1 1-1.4 1.4L12 13.4l-4.2 4.2a1 1 0 0 1-1.4-1.4l4.2-4.2-4.2-4.2a1 1 0 0 1 0-1.4Z"></path>
+            </svg>
+          </button>
+
+          <section class="simulation-panel">
+            <div class="simulation-heading">
+              <div>
+                <p class="eyebrow">Simulación</p>
+                <h2 id="simulationModalTitle">Escenarios de precio BTC</h2>
+                <p class="simulation-subtitle">
+                  Mueve el precio objetivo del Bitcoin y revisa cómo cambiaría el valor total de tu posición.
+                </p>
+              </div>
+            </div>
+
+            <div class="simulation-grid">
+              <article class="simulation-card simulation-card-live">
+                <div class="simulation-card-headline">
+                  <span class="simulation-card-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                      <path d="M12 2 3.5 7.5V16.5L12 22l8.5-5.5V7.5L12 2Zm0 2.3 6.5 4.2V16L12 20.3 5.5 16V8.5L12 4.3Z"></path>
+                      <path d="M12 6.3a1 1 0 0 1 .96.74l.74 2.74h2.83a1 1 0 0 1 .58 1.8l-2.29 1.66.88 2.76a1 1 0 0 1-1.54 1.11L12 15.94l-2.16 1.56a1 1 0 0 1-1.54-1.11l.88-2.76-2.29-1.66a1 1 0 0 1 .58-1.8h2.83l.74-2.74A1 1 0 0 1 12 6.3Z"></path>
+                    </svg>
+                  </span>
+                  <span class="label">Precio actual del BTC</span>
+                </div>
+                <strong id="simulationCurrentPriceUsd">-</strong>
+                <small id="simulationCurrentPriceCop">-</small>
+                <button type="button" class="simulation-live-button simulation-live-button-inline" id="simulationUseLivePrice">
+                  Usar precio actual
+                </button>
+              </article>
+
+              <article class="simulation-card simulation-card-wide simulation-card-target">
+                <div class="simulation-target-top">
+                  <div class="simulation-price-header">
+                    <div class="simulation-card-headline">
+                      <span class="simulation-card-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                          <path d="M12 3a1 1 0 0 1 1 1v1.08A7.98 7.98 0 0 1 19.92 11H21a1 1 0 1 1 0 2h-1.08A7.98 7.98 0 0 1 13 18.92V20a1 1 0 1 1-2 0v-1.08A7.98 7.98 0 0 1 4.08 13H3a1 1 0 1 1 0-2h1.08A7.98 7.98 0 0 1 11 5.08V4a1 1 0 0 1 1-1Zm0 4.2A4.8 4.8 0 1 0 16.8 12 4.81 4.81 0 0 0 12 7.2Zm0 2a2.8 2.8 0 1 1-2.8 2.8A2.8 2.8 0 0 1 12 9.2Z"></path>
+                        </svg>
+                      </span>
+                      <span class="label">Precio BTC a simular</span>
+                    </div>
+                    <strong id="simulationTargetPriceUsd">-</strong>
+                    <small id="simulationTargetPriceCop">-</small>
+                  </div>
+
+                  <div class="simulation-target-actions">
+                    <span id="simulationDeltaBadge" class="simulation-delta-badge neutral">Sin cambio</span>
+                  </div>
+                </div>
+
+                <div class="simulation-slider-wrap">
+                  <div class="simulation-equilibrium" id="simulationEquilibriumMarker" hidden>
+                    <span class="simulation-equilibrium-arrow" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                        <path d="M11 4a1 1 0 0 1 2 0v12.59l3.3-3.3a1 1 0 1 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 0 1 1.4-1.42L11 16.59V4Z"></path>
+                      </svg>
+                    </span>
+                    <span class="simulation-equilibrium-label">Punto de equilibrio</span>
+                  </div>
+                  <input
+                    id="simulationPriceRange"
+                    type="range"
+                    min="10000"
+                    max="300000"
+                    step="5000"
+                    value="60000"
+                  />
+                  <div class="simulation-slider-scale">
+                    <span>10K</span>
+                    <span>100K</span>
+                    <span>200K</span>
+                    <span>300K</span>
+                  </div>
+                </div>
+
+                <p id="simulationScenarioHint" class="simulation-scenario-hint">
+                  Ajusta el precio objetivo para simular tu próximo escenario.
+                </p>
+              </article>
+
+              <article class="simulation-card simulation-card-value">
+                <div class="simulation-card-headline">
+                  <span class="simulation-card-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                      <path d="M7 4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.8a2 2 0 0 0-.59-1.41l-2.8-2.8A2 2 0 0 0 14.2 3H7Zm0 2h7v3h3v7H7V6Zm3 4.5A1.5 1.5 0 1 0 10 13h3a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1.2a2.5 2.5 0 0 1 .5-4.95h3a1 1 0 1 1 0 2h-3Z"></path>
+                    </svg>
+                  </span>
+                  <span class="label">Tienes actualmente el valor de</span>
+                </div>
+                <strong id="simulationValueCop">-</strong>
+                <small id="simulationValueUsd">-</small>
+              </article>
+
+              <article class="simulation-card simulation-card-profit">
+                <div class="simulation-card-headline">
+                  <span class="simulation-card-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                      <path d="M4 15.5a1 1 0 0 1 .29-.7l4.7-4.7a1 1 0 0 1 1.41 0l2.34 2.34 5.54-5.54a1 1 0 0 1 1.41 1.41l-6.24 6.24a1 1 0 0 1-1.41 0L9.7 12.21l-4 4a1 1 0 0 1-1.7-.71Zm14-7.5h-2a1 1 0 1 1 0-2h4a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0V9.41l-5.3 5.3a1 1 0 1 1-1.4-1.42l5.3-5.29H18Z"></path>
+                    </svg>
+                  </span>
+                  <span class="label">Ganancia / pérdida simulada</span>
+                </div>
+                <strong id="simulationProfitCop">-</strong>
+                <small id="simulationProfitUsd">-</small>
+              </article>
+
+              <section class="simulation-banter neutral simulation-banter-card" id="simulationBanterPanel" aria-live="polite">
+                <span class="simulation-banter-kicker">Mood del mercado</span>
+                <strong class="simulation-banter-text" id="simulationBanterText">
+                  Mueve el slider y aqui te digo el chisme del escenario.
+                </strong>
+                <small class="simulation-banter-subtext" id="simulationBanterSubtext">
+                  Cada precio pinta una pelicula distinta.
+                </small>
+              </section>
+            </div>
+          </section>
+        </div>
+      </dialog>
+    </main>
+
+    <div class="profile-gate" id="profileGate" aria-hidden="true">
+      <div class="profile-gate-panel">
+        <p class="eyebrow">Selector de perfiles</p>
+        <h2>¿Quién está usando el dashboard?</h2>
+        <div class="profile-grid">
+          <button type="button" class="profile-card" data-profile-login="jesus">
+            <span class="profile-avatar profile-avatar-jesus">J</span>
+            <strong>Jesus</strong>
+            <small>Compras y dashboard principal</small>
+          </button>
+          <button type="button" class="profile-card" data-profile-login="alzate">
+            <span class="profile-avatar profile-avatar-alzate">A</span>
+            <strong>Alzate</strong>
+            <small>Compras de Alzate</small>
+          </button>
+        </div>
+
+        <form class="profile-auth-panel" id="profileAuthForm" novalidate>
+          <div class="profile-auth-copy">
+            <span class="label" id="profileAuthLabel">Selecciona un perfil</span>
+            <strong id="profileAuthTitle">Ingresa la contraseña del perfil</strong>
+          </div>
+          <div class="profile-auth-controls">
+            <input
+              id="profilePasswordInput"
+              class="profile-password-input"
+              type="password"
+              placeholder="Contraseña"
+              autocomplete="current-password"
+              disabled
+            />
+            <button type="submit" class="profile-password-submit" id="profilePasswordSubmit" disabled>
+              Ingresar
+            </button>
+          </div>
+          <small class="profile-auth-feedback" id="profileAuthFeedback">
+            Elige un perfil para desbloquear su dashboard.
+          </small>
+        </form>
+      </div>
+    </div>
+
+    <script src="./src/purchases-data.js"></script>
+    <script src="./src/catano-avatar.js"></script>
+    <script src="./src/app.js"></script>
+  </body>
+</html>
