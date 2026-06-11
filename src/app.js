@@ -181,6 +181,10 @@ const formatTableCop = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+const formatUsdCopRate = new Intl.NumberFormat("es-CO", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
 
 const formatTableUsd = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
@@ -680,8 +684,6 @@ function handleSocketMessage(event) {
 
 function handleTickerMessage(message) {
   const price = Number(message.c);
-  const difference = Number(message.p);
-  const percent = Number(message.P);
 
   if (!Number.isFinite(price)) {
     return;
@@ -690,10 +692,7 @@ function handleTickerMessage(message) {
   currentPriceElement.textContent = formatCurrency.format(price);
   state.lastClose = price;
   updatePurchaseSummary();
-  if (Number.isFinite(difference) && Number.isFinite(percent)) {
-    priceChangeElement.textContent = `${difference >= 0 ? "+" : ""}${formatCurrency.format(difference)} (${percent.toFixed(2)}%)`;
-    priceChangeElement.style.color = difference >= 0 ? "var(--green)" : "var(--red)";
-  }
+  updateUsdCopBadge();
 
   if (!state.liveChart) {
     updateRangeReturn();
@@ -708,7 +707,6 @@ function setConnection(type, text) {
 
 function updatePrice() {
   const last = state.candles.at(-1);
-  const previous = state.candles.at(-2);
 
   if (!last) {
     return;
@@ -719,12 +717,7 @@ function updatePrice() {
     heroCurrentPriceElement.textContent = formatCurrency.format(last.close);
   }
   updateHeroCopPrice();
-  if (previous) {
-    const difference = last.close - previous.close;
-    const percent = (difference / previous.close) * 100;
-    priceChangeElement.textContent = `${difference >= 0 ? "+" : ""}${formatCurrency.format(difference)} (${percent.toFixed(2)}%)`;
-    priceChangeElement.style.color = difference >= 0 ? "var(--green)" : "var(--red)";
-  }
+  updateUsdCopBadge();
 
   state.lastClose = last.close;
   initializeSimulationPrice();
@@ -736,6 +729,7 @@ async function loadUsdCopRate() {
   if (storedRate) {
     state.usdCop = storedRate;
     updateHeroCopPrice();
+    updateUsdCopBadge();
     updatePurchaseSummary();
   }
 
@@ -750,6 +744,7 @@ async function loadUsdCopRate() {
     if (Number.isFinite(rate) && rate > 0) {
       state.usdCop = rate;
       updateHeroCopPrice();
+      updateUsdCopBadge();
       localStorage.setItem(
         usdCopStorageKey,
         JSON.stringify({ rate, updatedAt: new Date().toISOString() }),
@@ -783,6 +778,17 @@ function updateHeroCopPrice() {
     Number.isFinite(state.lastClose) && Number.isFinite(state.usdCop)
       ? `Equivalente ${formatTableCop.format(state.lastClose * state.usdCop)} COP`
       : "Equivalente - COP";
+}
+
+function updateUsdCopBadge() {
+  if (!priceChangeElement) {
+    return;
+  }
+
+  priceChangeElement.textContent = Number.isFinite(state.usdCop)
+    ? `Hoy el dolar está en $ ${formatUsdCopRate.format(state.usdCop)} COP`
+    : "Hoy el dolar está en - COP";
+  priceChangeElement.style.color = "var(--text-secondary)";
 }
 
 function formatNewsTimestamp(dateString) {
