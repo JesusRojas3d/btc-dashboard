@@ -1,5 +1,35 @@
 import { getProfileCatalog, setSessionCookie, validateProfileCredentials } from "../_lib/auth.js";
 
+async function readRequestBody(request) {
+  if (request.body && typeof request.body === "object" && !Buffer.isBuffer(request.body)) {
+    return request.body;
+  }
+
+  if (typeof request.body === "string") {
+    try {
+      return JSON.parse(request.body);
+    } catch {
+      return {};
+    }
+  }
+
+  const chunks = [];
+
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  if (!chunks.length) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    return {};
+  }
+}
+
 export default async function handler(request, response) {
   if (request.method !== "POST") {
     response.status(405).json({ error: "Metodo no permitido" });
@@ -7,8 +37,9 @@ export default async function handler(request, response) {
   }
 
   try {
-    const profileId = String(request.body?.profileId || "").trim().toLowerCase();
-    const password = String(request.body?.password || "");
+    const body = await readRequestBody(request);
+    const profileId = String(body?.profileId || "").trim().toLowerCase();
+    const password = String(body?.password || "");
 
     if (!getProfileCatalog()[profileId]) {
       response.status(404).json({ error: "Perfil no encontrado" });
@@ -26,6 +57,8 @@ export default async function handler(request, response) {
       profile: getProfileCatalog()[profileId],
     });
   } catch (error) {
-    response.status(500).json({ error: error.message || "No se pudo iniciar sesion" });
+    response.status(500).json({
+      error: `Login error: ${error?.message || String(error) || "No se pudo iniciar sesion"}`,
+    });
   }
 }
