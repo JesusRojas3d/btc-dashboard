@@ -1850,13 +1850,26 @@ async function loadPurchases() {
     return;
   }
 
-  const serverPurchases = await fetchProfilePurchases(state.activeProfileId);
+  let serverPurchases = [];
+  let canSyncSharedPurchases = true;
+
+  try {
+    serverPurchases = await fetchProfilePurchases(state.activeProfileId);
+  } catch (error) {
+    canSyncSharedPurchases = false;
+    console.warn("[btc-dashboard] No se pudo cargar el historial compartido, usando compras incluidas.", error);
+  }
+
   const legacyPurchases = getLegacyPurchasesForProfile(state.activeProfileId);
   state.purchases = dedupePurchases(normalizePurchases([...serverPurchases, ...legacyPurchases]));
 
-  if (legacyPurchases.length) {
-    await replaceProfilePurchases(state.activeProfileId, state.purchases);
-    clearLegacyPurchasesForProfile(state.activeProfileId);
+  if (legacyPurchases.length && canSyncSharedPurchases) {
+    try {
+      await replaceProfilePurchases(state.activeProfileId, state.purchases);
+      clearLegacyPurchasesForProfile(state.activeProfileId);
+    } catch (error) {
+      console.warn("[btc-dashboard] No se pudo sincronizar el historial inicial al servidor.", error);
+    }
   }
 
   updatePurchaseSummary();
