@@ -466,6 +466,7 @@ body.profile-gate-open .shell {
 }
 
 .slot-value {
+  display: inline-block;
   font-variant-numeric: tabular-nums;
 }
 
@@ -926,7 +927,7 @@ h1 {
   color: var(--muted);
 }
 
-.range-return span {
+.range-return > span {
   display: inline-flex;
   align-items: center;
   min-height: 30px;

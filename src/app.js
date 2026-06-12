@@ -239,6 +239,30 @@ function isSlotFixedWidth(character) {
   return /[0-9]/.test(character);
 }
 
+function shouldAnimateSlotCharacter(nextCharacter, previousCharacter) {
+  return (
+    Boolean(previousCharacter) &&
+    previousCharacter !== nextCharacter &&
+    isSlotFixedWidth(nextCharacter) &&
+    isSlotFixedWidth(previousCharacter)
+  );
+}
+
+function lockSlotWidth(element) {
+  const currentWidth = element.getBoundingClientRect?.().width || 0;
+
+  if (!currentWidth) {
+    return;
+  }
+
+  const nextMinWidth = Math.ceil(
+    Math.max(Number(element.dataset.slotMinWidth) || 0, currentWidth),
+  );
+
+  element.dataset.slotMinWidth = String(nextMinWidth);
+  element.style.minWidth = `${nextMinWidth}px`;
+}
+
 function createSlotCharacter(nextCharacter, previousCharacter, direction, shouldAnimate) {
   const characterElement = document.createElement("span");
   characterElement.className = "slot-character";
@@ -271,11 +295,12 @@ function createSlotFragment(nextText, previousText, direction, startIndex = 0) {
   const fragment = document.createDocumentFragment();
   const safeNextText = String(nextText ?? "");
   const safePreviousText = String(previousText ?? "");
+  const previousCharacters = Array.from(safePreviousText);
 
   Array.from(safeNextText).forEach((character, localIndex) => {
     const globalIndex = startIndex + localIndex;
-    const previousCharacter = Array.from(safePreviousText)[globalIndex] || "";
-    const shouldAnimate = previousCharacter && previousCharacter !== character;
+    const previousCharacter = previousCharacters[globalIndex] || "";
+    const shouldAnimate = shouldAnimateSlotCharacter(character, previousCharacter);
     fragment.append(createSlotCharacter(character, previousCharacter, direction, shouldAnimate));
   });
 
@@ -283,6 +308,7 @@ function createSlotFragment(nextText, previousText, direction, startIndex = 0) {
 }
 
 function renderSlotText(element, nextText, previousText, direction) {
+  lockSlotWidth(element);
   element.classList.add("slot-value");
   element.replaceChildren(createSlotFragment(nextText, previousText, direction));
 }
