@@ -221,6 +221,66 @@ function getDisplayTextFromHtml(html) {
   return template.content.textContent ?? "";
 }
 
+function getMotionDirection(previousValue, nextValue) {
+  if (!Number.isFinite(previousValue) || !Number.isFinite(nextValue)) {
+    return "neutral";
+  }
+
+  if (nextValue > previousValue) {
+    return "up";
+  }
+
+  if (nextValue < previousValue) {
+    return "down";
+  }
+
+  return "neutral";
+}
+
+function isOdometerDigit(character) {
+  return /^[0-9]$/.test(character);
+}
+
+function createOdometerCharacter(nextCharacter, previousCharacter, direction) {
+  const characterElement = document.createElement("span");
+  characterElement.className = "odometer-character";
+  characterElement.textContent = nextCharacter;
+
+  if (isOdometerDigit(nextCharacter)) {
+    characterElement.classList.add("odometer-digit");
+  }
+
+  const canAnimate =
+    direction !== "neutral" &&
+    isOdometerDigit(nextCharacter) &&
+    isOdometerDigit(previousCharacter) &&
+    nextCharacter !== previousCharacter;
+
+  if (!canAnimate) {
+    return characterElement;
+  }
+
+  const previousElement = document.createElement("span");
+  previousElement.className = `odometer-previous odometer-previous-${direction}`;
+  previousElement.textContent = previousCharacter;
+  characterElement.append(previousElement);
+
+  return characterElement;
+}
+
+function renderOdometerText(element, nextText, previousText, direction) {
+  const wrapper = document.createElement("span");
+  const previousCharacters = Array.from(String(previousText ?? ""));
+
+  wrapper.className = "odometer-value";
+
+  Array.from(String(nextText ?? "")).forEach((character, index) => {
+    wrapper.append(createOdometerCharacter(character, previousCharacters[index] || "", direction));
+  });
+
+  element.replaceChildren(wrapper);
+}
+
 function setStaticValue(element, content, mode) {
   if (mode === "html") {
     element.innerHTML = content;
@@ -243,9 +303,22 @@ function setAnimatedValue(element, nextContent, options = {}) {
   const normalizedContent = String(nextContent ?? "");
   const nextDisplayText =
     mode === "html" ? getDisplayTextFromHtml(normalizedContent) : normalizedContent;
+  const previousMotion = motionKey ? valueMotionCache.get(motionKey) : null;
   const normalizedValue = Number.isFinite(numericValue) ? Number(numericValue) : null;
+  const direction = getMotionDirection(previousMotion?.value, normalizedValue);
+  const canUseOdometer =
+    mode === "text" &&
+    previousMotion &&
+    previousMotion.display !== nextDisplayText &&
+    previousMotion.display.length === nextDisplayText.length &&
+    direction !== "neutral" &&
+    !window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 
-  setStaticValue(element, normalizedContent, mode);
+  if (canUseOdometer) {
+    renderOdometerText(element, nextDisplayText, previousMotion.display, direction);
+  } else {
+    setStaticValue(element, normalizedContent, mode);
+  }
 
   if (motionKey) {
     valueMotionCache.set(motionKey, {
