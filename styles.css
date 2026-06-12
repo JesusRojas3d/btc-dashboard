@@ -481,6 +481,7 @@ body.profile-gate-open .shell {
 .slot-character {
   position: relative;
   display: inline-block;
+  line-height: inherit;
   white-space: pre;
   vertical-align: baseline;
 }
@@ -490,24 +491,28 @@ body.profile-gate-open .shell {
 }
 
 .slot-character-animated {
+  overflow: hidden;
   width: 1ch;
   min-width: 1ch;
+  height: 1em;
+  line-height: 1em;
   text-align: center;
+  vertical-align: baseline;
 }
 
 .slot-roll-up,
 .slot-roll-down {
-  overflow: hidden;
-  height: 1em;
-  line-height: 1em;
-  vertical-align: -0.08em;
   will-change: transform, filter;
 }
 
 .slot-roll-stable {
-  display: inline-block;
+  display: block;
+  width: 100%;
+  height: 1em;
+  line-height: 1em;
   opacity: 0;
   pointer-events: none;
+  text-align: center;
   user-select: none;
   animation: slotStableReveal 0.54s steps(1, end) both;
 }
@@ -516,10 +521,12 @@ body.profile-gate-open .shell {
 .slot-roll-new {
   position: absolute;
   inset: 0;
-  display: inline-flex;
-  align-items: baseline;
-  justify-content: center;
+  display: block;
+  width: 100%;
+  height: 1em;
   color: currentColor;
+  line-height: 1em;
+  text-align: center;
   text-shadow: inherit;
   will-change: transform, filter, opacity;
 }
