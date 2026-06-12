@@ -372,6 +372,24 @@
     </main>
 
     <div class="profile-gate" id="profileGate" aria-hidden="true">
+      <video class="profile-gate-video" autoplay muted loop playsinline preload="auto" aria-hidden="true">
+        <source src="./background_btc.webm" type="video/webm" />
+      </video>
+      <audio
+        id="loginMusic"
+        src="./Push%20It%20To%20The%20Limit%20(scarface).mp3"
+        loop
+        preload="auto"
+      ></audio>
+      <div class="login-audio-controls" aria-label="Controles de musica del login">
+        <button type="button" class="login-audio-toggle" id="loginMusicToggle" aria-pressed="false">
+          Activar musica
+        </button>
+        <label class="login-volume-control" for="loginMusicVolume">
+          <span>Volumen</span>
+          <input id="loginMusicVolume" type="range" min="0" max="1" step="0.01" value="0.35" />
+        </label>
+      </div>
       <div class="profile-gate-panel">
         <p class="eyebrow">Selector de perfiles</p>
         <h2>¿Quién está usando el dashboard?</h2>
@@ -385,6 +403,11 @@
             <span class="profile-avatar profile-avatar-alzate">A</span>
             <strong>Alzate</strong>
             <small>Compras de Alzate</small>
+          </button>
+          <button type="button" class="profile-card" data-profile-login="visitor">
+            <span class="profile-avatar profile-avatar-visitor">V</span>
+            <strong>Visitante</strong>
+            <small>Entrar sin contraseña</small>
           </button>
         </div>
 

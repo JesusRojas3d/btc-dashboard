@@ -13,6 +13,9 @@ const profilePasswordSubmit = document.querySelector("#profilePasswordSubmit");
 const profileAuthLabel = document.querySelector("#profileAuthLabel");
 const profileAuthTitle = document.querySelector("#profileAuthTitle");
 const profileAuthFeedback = document.querySelector("#profileAuthFeedback");
+const loginMusicElement = document.querySelector("#loginMusic");
+const loginMusicToggleButton = document.querySelector("#loginMusicToggle");
+const loginMusicVolumeInput = document.querySelector("#loginMusicVolume");
 const activeProfileNameElement = document.querySelector("#activeProfileName");
 const activeProfileBadgeElement = document.querySelector("#activeProfileBadge");
 const switchProfileButton = document.querySelector("#switchProfileButton");
@@ -84,6 +87,9 @@ const purchasesStorageKey = "btc-dashboard-purchases";
 const purchasesApiBase = "/api/purchases";
 const authApiBase = "/api/auth";
 const summaryVisibilityStorageKey = "btc-dashboard-summary-masked";
+const visitorProfileId = "visitor";
+const visitorSessionStorageKey = "btc-dashboard-visitor-session";
+const loginMusicDefaultVolume = 0.35;
 const usdCopStorageKey = "btc-dashboard-usd-cop";
 const usdCopRefreshMs = 10_000;
 const newsStorageKey = "btc-dashboard-catano-feed";
@@ -136,6 +142,7 @@ const state = {
   profileGateVisible: false,
   pendingProfileId: null,
   summaryMasked: false,
+  loginMusicEnabled: true,
   simulationPriceUsd: null,
   newsItems: [],
 };
@@ -213,7 +220,79 @@ const valueMotionCache = new Map();
 const profileCatalog = {
   jesus: { id: "jesus", name: "Jesus" },
   alzate: { id: "alzate", name: "Alzate" },
+  [visitorProfileId]: { id: visitorProfileId, name: "Visitante", isVisitor: true },
 };
+
+function isVisitorProfile(profileId = state.activeProfileId) {
+  return profileId === visitorProfileId;
+}
+
+function getLoginMusicVolume() {
+  const inputVolume = Number(loginMusicVolumeInput?.value);
+  return clamp(Number.isFinite(inputVolume) ? inputVolume : loginMusicDefaultVolume, 0, 1);
+}
+
+function updateLoginMusicButton() {
+  if (!loginMusicToggleButton || !loginMusicElement) {
+    return;
+  }
+
+  const hasSound =
+    state.loginMusicEnabled && !loginMusicElement.paused && !loginMusicElement.muted && getLoginMusicVolume() > 0;
+  loginMusicToggleButton.textContent = hasSound ? "Silenciar musica" : "Activar musica";
+  loginMusicToggleButton.setAttribute("aria-pressed", String(hasSound));
+  loginMusicToggleButton.classList.toggle("is-playing", hasSound);
+}
+
+async function playLoginMusic() {
+  if (!loginMusicElement) {
+    return;
+  }
+
+  state.loginMusicEnabled = true;
+  loginMusicElement.volume = getLoginMusicVolume();
+  loginMusicElement.muted = false;
+
+  try {
+    await loginMusicElement.play();
+  } catch {
+    loginMusicElement.muted = true;
+  }
+
+  updateLoginMusicButton();
+}
+
+function pauseLoginMusic({ reset = false } = {}) {
+  if (!loginMusicElement) {
+    return;
+  }
+
+  loginMusicElement.pause();
+  loginMusicElement.muted = !state.loginMusicEnabled;
+  if (reset) {
+    loginMusicElement.currentTime = 0;
+  }
+  updateLoginMusicButton();
+}
+
+function syncLoginMediaState(isGateVisible) {
+  if (!loginMusicElement) {
+    return;
+  }
+
+  if (!isGateVisible) {
+    pauseLoginMusic({ reset: true });
+    return;
+  }
+
+  if (!state.loginMusicEnabled || getLoginMusicVolume() <= 0) {
+    pauseLoginMusic();
+    updateLoginMusicButton();
+    return;
+  }
+
+  playLoginMusic();
+}
 
 function getDisplayTextFromHtml(html) {
   const template = document.createElement("template");
@@ -2244,7 +2323,7 @@ function updateSimulationBanter({ deltaUsd, currentPriceUsd, targetPriceUsd, met
 }
 
 async function loadPurchases() {
-  if (!state.activeProfileId) {
+  if (!state.activeProfileId || isVisitorProfile()) {
     state.purchases = [];
     updatePurchaseSummary();
     return;
@@ -2614,6 +2693,11 @@ async function addPurchase(event) {
     return;
   }
 
+  if (isVisitorProfile()) {
+    alert("El perfil Visitante es solo para mirar el dashboard. Cambia de perfil para registrar compras.");
+    return;
+  }
+
   const btc = parseBtcValue(purchaseBtcInput.value);
   const date = purchaseDateInput.value;
   const priceUsd = parseMoneyValue(purchaseUsdInput.value);
@@ -2690,6 +2774,10 @@ function parseMoneyValue(value) {
 }
 
 async function deletePurchase(id) {
+  if (isVisitorProfile()) {
+    return;
+  }
+
   try {
     await removeProfilePurchase(state.activeProfileId, id);
     state.purchases = state.purchases.filter((purchase) => purchase.id !== id);
@@ -2784,7 +2872,7 @@ function setProfileAuthFeedback(message, tone = "") {
 
 function updateProfileAuthUI() {
   const pendingProfile = profileCatalog[state.pendingProfileId] || null;
-  const hasPendingProfile = Boolean(pendingProfile);
+  const hasPendingProfile = Boolean(pendingProfile && !pendingProfile.isVisitor);
   profileAuthForm?.classList.toggle("is-visible", hasPendingProfile);
 
   if (profileAuthLabel) {
@@ -2839,9 +2927,11 @@ function closeProfileSwitcher() {
 function updateProfileSessionUI() {
   const activeProfile = profileCatalog[state.activeProfileId] || null;
   const isGateVisible = state.profileGateVisible || !activeProfile;
-  const profileNoteText = activeProfile
-    ? `Estás viendo el dashboard de ${activeProfile.name}.`
-    : "Selecciona un perfil para ver su dashboard.";
+  const profileNoteText = activeProfile?.isVisitor
+    ? "Vista sin compras registradas."
+    : activeProfile
+      ? `Estás viendo el dashboard de ${activeProfile.name}.`
+      : "Selecciona un perfil para ver su dashboard.";
 
   if (activeProfileNameElement) {
     activeProfileNameElement.textContent = activeProfile ? activeProfile.name : "Sin sesión";
@@ -2870,6 +2960,7 @@ function updateProfileSessionUI() {
   profileGate?.classList.toggle("is-visible", isGateVisible);
   profileGate?.setAttribute("aria-hidden", String(!isGateVisible));
   document.body.classList.toggle("profile-gate-open", isGateVisible);
+  syncLoginMediaState(isGateVisible);
 
   profileLoginButtons.forEach((button) => {
     const selectedProfileId = isGateVisible ? state.pendingProfileId : state.activeProfileId;
@@ -2885,7 +2976,8 @@ async function restoreProfileSession() {
     });
 
     if (!response.ok) {
-      state.activeProfileId = null;
+      state.activeProfileId =
+        localStorage.getItem(visitorSessionStorageKey) === "true" ? visitorProfileId : null;
       updateProfileSessionUI();
       updateProfileAuthUI();
       return;
@@ -2894,16 +2986,49 @@ async function restoreProfileSession() {
     const payload = await response.json();
     state.activeProfileId =
       payload?.authenticated && profileCatalog[payload?.profile?.id] ? payload.profile.id : null;
+    if (state.activeProfileId) {
+      localStorage.removeItem(visitorSessionStorageKey);
+    } else if (localStorage.getItem(visitorSessionStorageKey) === "true") {
+      state.activeProfileId = visitorProfileId;
+    }
   } catch {
-    state.activeProfileId = null;
+    state.activeProfileId =
+      localStorage.getItem(visitorSessionStorageKey) === "true" ? visitorProfileId : null;
   }
 
   updateProfileSessionUI();
   updateProfileAuthUI();
 }
 
+async function loginVisitorProfile() {
+  localStorage.setItem(visitorSessionStorageKey, "true");
+  state.activeProfileId = visitorProfileId;
+  state.pendingProfileId = null;
+  state.profileGateVisible = false;
+  state.purchases = [];
+  closeSimulationModal();
+  resetSimulationToLivePrice();
+
+  try {
+    await fetch(`${authApiBase}/logout`, {
+      method: "POST",
+      credentials: "same-origin",
+    });
+  } catch {}
+
+  updatePurchaseSummary();
+  updateProfileSessionUI();
+  updateProfileAuthUI();
+  draw();
+}
+
 async function loginProfile(profileId, password) {
   if (!profileCatalog[profileId]) {
+    return;
+  }
+
+  if (isVisitorProfile(profileId)) {
+    await loginVisitorProfile();
     return;
   }
 
@@ -2924,6 +3049,7 @@ async function loginProfile(profileId, password) {
   }
 
   const payload = await response.json();
+  localStorage.removeItem(visitorSessionStorageKey);
   state.activeProfileId = profileId;
   state.pendingProfileId = null;
   state.profileGateVisible = false;
@@ -2937,6 +3063,7 @@ async function loginProfile(profileId, password) {
 }
 
 async function logoutProfile() {
+  localStorage.removeItem(visitorSessionStorageKey);
   state.activeProfileId = null;
   state.pendingProfileId = null;
   state.purchases = [];
@@ -2960,6 +3087,44 @@ function attachEvents() {
   purchaseForm?.addEventListener("submit", addPurchase);
   logoutButton?.addEventListener("click", logoutProfile);
   switchProfileButton?.addEventListener("click", openProfileSwitcher);
+  loginMusicToggleButton?.addEventListener("click", async () => {
+    const shouldPlay =
+      !state.loginMusicEnabled || loginMusicElement?.paused || loginMusicElement?.muted || getLoginMusicVolume() <= 0;
+
+    if (shouldPlay) {
+      state.loginMusicEnabled = true;
+      if (loginMusicVolumeInput && getLoginMusicVolume() <= 0) {
+        loginMusicVolumeInput.value = String(loginMusicDefaultVolume);
+      }
+      await playLoginMusic();
+      return;
+    }
+
+    state.loginMusicEnabled = false;
+    pauseLoginMusic();
+  });
+  loginMusicVolumeInput?.addEventListener("input", async () => {
+    if (!loginMusicElement) {
+      return;
+    }
+
+    loginMusicElement.volume = getLoginMusicVolume();
+
+    if (getLoginMusicVolume() <= 0) {
+      state.loginMusicEnabled = false;
+      loginMusicElement.muted = true;
+      updateLoginMusicButton();
+      return;
+    }
+
+    if (!profileGate?.classList.contains("is-visible")) {
+      updateLoginMusicButton();
+      return;
+    }
+
+    state.loginMusicEnabled = true;
+    await playLoginMusic();
+  });
   summaryVisibilityButton?.addEventListener("click", () => {
     state.summaryMasked = !state.summaryMasked;
     localStorage.setItem(summaryVisibilityStorageKey, String(state.summaryMasked));
@@ -2967,8 +3132,16 @@ function attachEvents() {
     updatePurchaseSummary();
   });
   profileLoginButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      state.pendingProfileId = button.dataset.profileLogin;
+    button.addEventListener("click", async () => {
+      const selectedProfileId = button.dataset.profileLogin;
+
+      if (isVisitorProfile(selectedProfileId)) {
+        setProfileAuthFeedback("");
+        await loginVisitorProfile();
+        return;
+      }
+
+      state.pendingProfileId = selectedProfileId;
       if (profilePasswordInput) {
         profilePasswordInput.value = "";
       }
