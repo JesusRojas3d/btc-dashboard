@@ -436,12 +436,14 @@ body.profile-gate-open .shell {
   margin: 0;
   font-size: clamp(2.4rem, 5vw, 4.4rem);
   line-height: 0.95;
+  min-height: 0.95em;
 }
 
 .hero-spotlight-body .subtitle {
   max-width: none;
   font-size: 1rem;
   font-weight: 560;
+  min-height: 1.25em;
 }
 
 .hero-price-change {
@@ -468,6 +470,10 @@ body.profile-gate-open .shell {
 .slot-value {
   display: inline-block;
   font-variant-numeric: tabular-nums;
+  line-height: inherit;
+  text-align: inherit;
+  vertical-align: baseline;
+  white-space: nowrap;
 }
 
 .slot-character {
@@ -1283,15 +1289,20 @@ h1 {
 }
 
 .simulation-card strong {
+  display: block;
   font-size: clamp(1.7rem, 3vw, 2.7rem);
   font-weight: 700;
   letter-spacing: -0.055em;
+  line-height: 1;
+  min-height: 1em;
   transition: color 180ms ease, text-shadow 180ms ease;
 }
 
 .simulation-card small {
+  display: block;
   color: var(--muted);
   font-size: 0.96rem;
+  min-height: 1.2em;
 }
 
 .simulation-card-headline {

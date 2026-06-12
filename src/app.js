@@ -248,11 +248,11 @@ function shouldAnimateSlotCharacter(nextCharacter, previousCharacter) {
   );
 }
 
-function lockSlotWidth(element) {
+function getLockedSlotWidth(element) {
   const currentWidth = element.getBoundingClientRect?.().width || 0;
 
   if (!currentWidth) {
-    return;
+    return 0;
   }
 
   const nextMinWidth = Math.ceil(
@@ -260,7 +260,7 @@ function lockSlotWidth(element) {
   );
 
   element.dataset.slotMinWidth = String(nextMinWidth);
-  element.style.minWidth = `${nextMinWidth}px`;
+  return nextMinWidth;
 }
 
 function createSlotCharacter(nextCharacter, previousCharacter, direction, shouldAnimate) {
@@ -308,33 +308,25 @@ function createSlotFragment(nextText, previousText, direction, startIndex = 0) {
 }
 
 function renderSlotText(element, nextText, previousText, direction) {
-  lockSlotWidth(element);
-  element.classList.add("slot-value");
-  element.replaceChildren(createSlotFragment(nextText, previousText, direction));
+  const wrapper = document.createElement("span");
+  const lockedWidth = getLockedSlotWidth(element);
+
+  wrapper.className = "slot-value";
+
+  if (lockedWidth) {
+    wrapper.style.minWidth = `${lockedWidth}px`;
+  }
+
+  wrapper.append(createSlotFragment(nextText, previousText, direction));
+  element.replaceChildren(wrapper);
 }
 
 function setStaticValue(element, content, mode) {
-  element.classList.remove("slot-value");
-
   if (mode === "html") {
     element.innerHTML = content;
   } else {
     element.textContent = content;
   }
-}
-
-function scheduleSlotCleanup(element, content, motionKey) {
-  if (element.__slotCleanupTimer) {
-    clearTimeout(element.__slotCleanupTimer);
-  }
-
-  element.__slotCleanupTimer = setTimeout(() => {
-    if (valueMotionCache.get(motionKey)?.content !== content) {
-      return;
-    }
-
-    setStaticValue(element, content, "text");
-  }, 620);
 }
 
 function setAnimatedValue(element, nextContent, options = {}) {
@@ -373,13 +365,17 @@ function setAnimatedValue(element, nextContent, options = {}) {
     value: normalizedValue,
   });
 
-  if (mode === "html" || !previousMotion || !contentChanged || direction === "neutral") {
+  if (mode === "html") {
     setStaticValue(element, normalizedContent, mode);
     return;
   }
 
+  if (!previousMotion || !contentChanged || direction === "neutral") {
+    renderSlotText(element, normalizedContent, normalizedContent, "neutral");
+    return;
+  }
+
   renderSlotText(element, normalizedContent, previousDisplayText, direction);
-  scheduleSlotCleanup(element, normalizedContent, motionKey);
 }
 
 function syncAnimatedNodes(rootElement = document) {
