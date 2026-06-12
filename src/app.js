@@ -241,44 +241,89 @@ function isOdometerDigit(character) {
   return /^[0-9]$/.test(character);
 }
 
-function createOdometerCharacter(nextCharacter, previousCharacter, direction) {
-  const characterElement = document.createElement("span");
-  characterElement.className = "odometer-character";
-  characterElement.textContent = nextCharacter;
-
-  if (isOdometerDigit(nextCharacter)) {
-    characterElement.classList.add("odometer-digit");
-  }
-
-  const canAnimate =
-    direction !== "neutral" &&
-    isOdometerDigit(nextCharacter) &&
-    isOdometerDigit(previousCharacter) &&
-    nextCharacter !== previousCharacter;
-
-  if (!canAnimate) {
-    return characterElement;
-  }
-
-  const previousElement = document.createElement("span");
-  previousElement.className = `odometer-previous odometer-previous-${direction}`;
-  previousElement.textContent = previousCharacter;
-  characterElement.append(previousElement);
-
-  return characterElement;
+function copyOdometerOverlayStyle(sourceElement, targetElement) {
+  const style = window.getComputedStyle(sourceElement);
+  targetElement.style.color = style.color;
+  targetElement.style.font = style.font;
+  targetElement.style.fontKerning = style.fontKerning;
+  targetElement.style.fontVariantNumeric = "tabular-nums";
+  targetElement.style.letterSpacing = style.letterSpacing;
+  targetElement.style.lineHeight = style.lineHeight;
 }
 
-function renderOdometerText(element, nextText, previousText, direction) {
-  const wrapper = document.createElement("span");
-  const previousCharacters = Array.from(String(previousText ?? ""));
+function createOdometerOverlay(rect, character, direction, sourceElement, motionKey) {
+  const overlayElement = document.createElement("span");
+  const digitElement = document.createElement("span");
 
-  wrapper.className = "odometer-value";
+  overlayElement.className = "odometer-overlay";
+  overlayElement.dataset.motionKey = motionKey;
+  overlayElement.style.left = `${rect.left}px`;
+  overlayElement.style.top = `${rect.top}px`;
+  overlayElement.style.width = `${rect.width}px`;
+  overlayElement.style.height = `${rect.height}px`;
 
-  Array.from(String(nextText ?? "")).forEach((character, index) => {
-    wrapper.append(createOdometerCharacter(character, previousCharacters[index] || "", direction));
-  });
+  digitElement.className = `odometer-overlay-digit odometer-overlay-digit-${direction}`;
+  digitElement.textContent = character;
+  copyOdometerOverlayStyle(sourceElement, digitElement);
 
-  element.replaceChildren(wrapper);
+  overlayElement.append(digitElement);
+  document.body.append(overlayElement);
+
+  window.setTimeout(() => overlayElement.remove(), 650);
+}
+
+function clearOdometerOverlays(motionKey) {
+  if (!motionKey) {
+    return;
+  }
+
+  document
+    .querySelectorAll(".odometer-overlay")
+    .forEach((overlayElement) => {
+      if (overlayElement.dataset.motionKey === motionKey) {
+        overlayElement.remove();
+      }
+    });
+}
+
+function collectOdometerChanges(element, nextText, previousText, direction) {
+  if (
+    direction === "neutral" ||
+    !element.firstChild ||
+    element.firstChild.nodeType !== Node.TEXT_NODE ||
+    element.textContent !== previousText ||
+    nextText.length !== previousText.length
+  ) {
+    return [];
+  }
+
+  const changes = [];
+  const range = document.createRange();
+
+  for (let index = 0; index < nextText.length; index += 1) {
+    const nextCharacter = nextText[index];
+    const previousCharacter = previousText[index];
+
+    if (
+      nextCharacter === previousCharacter ||
+      !isOdometerDigit(nextCharacter) ||
+      !isOdometerDigit(previousCharacter)
+    ) {
+      continue;
+    }
+
+    range.setStart(element.firstChild, index);
+    range.setEnd(element.firstChild, index + 1);
+
+    const rect = range.getBoundingClientRect();
+
+    if (rect.width && rect.height) {
+      changes.push({ rect, previousCharacter });
+    }
+  }
+
+  range.detach();
+  return changes;
 }
 
 function setStaticValue(element, content, mode) {
@@ -313,12 +358,16 @@ function setAnimatedValue(element, nextContent, options = {}) {
     previousMotion.display.length === nextDisplayText.length &&
     direction !== "neutral" &&
     !window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const odometerChanges = canUseOdometer
+    ? collectOdometerChanges(element, nextDisplayText, previousMotion.display, direction)
+    : [];
 
-  if (canUseOdometer) {
-    renderOdometerText(element, nextDisplayText, previousMotion.display, direction);
-  } else {
-    setStaticValue(element, normalizedContent, mode);
-  }
+  clearOdometerOverlays(motionKey);
+  setStaticValue(element, normalizedContent, mode);
+
+  odometerChanges.forEach(({ rect, previousCharacter }) => {
+    createOdometerOverlay(rect, previousCharacter, direction, element, motionKey);
+  });
 
   if (motionKey) {
     valueMotionCache.set(motionKey, {

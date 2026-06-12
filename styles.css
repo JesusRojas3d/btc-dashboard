@@ -467,44 +467,36 @@ body.profile-gate-open .shell {
   letter-spacing: -0.01em;
 }
 
-.odometer-value {
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.odometer-character {
-  position: relative;
-  display: inline-block;
-  white-space: pre;
-  vertical-align: baseline;
-}
-
-.odometer-digit {
-  width: 1ch;
+.odometer-overlay {
+  position: fixed;
+  z-index: 2147483647;
+  display: block;
   overflow: hidden;
-  text-align: center;
+  pointer-events: none;
+  contain: strict;
 }
 
-.odometer-previous {
+.odometer-overlay-digit {
   position: absolute;
   inset: 0;
-  color: currentColor;
-  line-height: inherit;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
+  text-align: center;
   user-select: none;
   will-change: transform, opacity, filter;
 }
 
-.odometer-previous-up {
-  animation: odometerPreviousUp 520ms cubic-bezier(0.2, 0.85, 0.22, 1) both;
+.odometer-overlay-digit-up {
+  animation: odometerOverlayUp 520ms cubic-bezier(0.2, 0.85, 0.22, 1) both;
 }
 
-.odometer-previous-down {
-  animation: odometerPreviousDown 520ms cubic-bezier(0.2, 0.85, 0.22, 1) both;
+.odometer-overlay-digit-down {
+  animation: odometerOverlayDown 520ms cubic-bezier(0.2, 0.85, 0.22, 1) both;
 }
 
-@keyframes odometerPreviousUp {
+@keyframes odometerOverlayUp {
   0% {
     opacity: 1;
     filter: blur(0);
@@ -517,7 +509,7 @@ body.profile-gate-open .shell {
   }
 }
 
-@keyframes odometerPreviousDown {
+@keyframes odometerOverlayDown {
   0% {
     opacity: 1;
     filter: blur(0);
