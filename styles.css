@@ -22,6 +22,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(0, 0, 0, 0.035), transparent 28rem),
     linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 48%, #efeff1 100%),
@@ -2055,7 +2056,7 @@ h1 {
 }
 
 .profile-gate-video {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 0;
   width: 100%;
@@ -2126,7 +2127,7 @@ h1 {
 }
 
 .login-audio-controls {
-  position: absolute;
+  position: fixed;
   right: 24px;
   bottom: 24px;
   z-index: 3;
@@ -2403,6 +2404,12 @@ h1 {
 }
 
 @media (max-width: 760px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+  }
+
   body.profile-gate-open {
     overflow: hidden;
     position: fixed;
@@ -2410,17 +2417,42 @@ h1 {
   }
 
   .shell {
+    width: min(100%, calc(100vw - 20px));
+    padding: 10px 0 18px;
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .sidebar {
     position: static;
     grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .sidebar-card {
+    border-radius: 22px;
+  }
+
+  .sidebar-brand {
+    gap: 12px;
+  }
+
+  .sidebar-nav {
+    padding: 10px;
+  }
+
+  .sidebar-nav-button {
+    min-height: 44px;
   }
 
   .overview-dock-shell {
-    padding: 16px;
+    padding: 12px;
     border-radius: 24px;
+  }
+
+  .overview-dock .hero,
+  .overview-dock .summary-grid {
+    gap: 10px;
   }
 
   .session-bar {
@@ -2437,6 +2469,93 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .hero {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .hero-spotlight,
+  .news-card {
+    border-radius: 24px;
+  }
+
+  .hero-spotlight {
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .hero-spotlight-header {
+    align-items: start;
+  }
+
+  .hero-btc-icon {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 auto;
+    border-radius: 16px;
+  }
+
+  .hero-btc-icon img {
+    width: 26px;
+    height: 26px;
+  }
+
+  .hero-spotlight-body h1 {
+    font-size: clamp(2.35rem, 13vw, 3.25rem);
+    line-height: 1;
+    overflow-wrap: anywhere;
+  }
+
+  .hero-spotlight-body .subtitle,
+  .hero-price-note {
+    overflow-wrap: anywhere;
+  }
+
+  .hero-price-change {
+    max-width: 100%;
+    flex-wrap: wrap;
+    line-height: 1.25;
+    padding-block: 6px;
+  }
+
+  .news-card {
+    height: auto;
+    padding: 14px;
+  }
+
+  .news-card-header {
+    align-items: start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .news-card-header small {
+    white-space: normal;
+  }
+
+  .summary-grid {
+    margin-bottom: 10px;
+  }
+
+  .summary-grid-toolbar {
+    justify-content: stretch;
+  }
+
+  .summary-visibility-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .summary-grid article {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .summary-grid strong {
+    font-size: clamp(1.32rem, 8vw, 1.85rem);
+    overflow-wrap: anywhere;
+  }
+
   .simulation-grid {
     grid-template-areas:
       "live"
@@ -2448,7 +2567,63 @@ h1 {
 
   .toolbar {
     justify-items: start;
-    border-radius: var(--radius-md);
+    align-items: stretch;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 22px;
+  }
+
+  .timeframes {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .timeframes::-webkit-scrollbar {
+    display: none;
+  }
+
+  .timeframes button {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding-inline: 12px;
+  }
+
+  .toolbar-meta {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .purchase-view-switch {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .purchase-view-switch button {
+    width: 100%;
+  }
+
+  .range-return,
+  .status {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding-right: 0;
+    text-align: center;
+  }
+
+  .range-return strong,
+  .range-return small {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .confirm-modal-card {
@@ -2456,16 +2631,21 @@ h1 {
   }
 
   .simulation-modal {
-    width: min(100vw - 20px, 1080px);
+    width: min(100vw - 12px, 1080px);
+    max-height: calc(100dvh - 12px);
+    margin: 6px auto;
   }
 
   .simulation-modal-shell {
-    padding: 10px;
+    padding: 6px;
+    border-radius: 24px;
   }
 
   .simulation-modal-close {
-    top: 14px;
-    right: 14px;
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
   }
 
   .confirm-modal-actions {
@@ -2499,41 +2679,54 @@ h1 {
   .profile-card {
     width: min(100%, 280px);
     justify-self: center;
+    padding: 14px 12px;
+    border-radius: 24px;
+  }
+
+  .profile-avatar {
+    width: 86px;
+    border-radius: 22px;
+    font-size: 2.2rem;
   }
 
   .login-audio-controls {
     left: 16px;
     right: 16px;
     bottom: 16px;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+    gap: 10px;
     border-radius: 24px;
   }
 
   .login-audio-toggle {
+    width: 100%;
     min-width: 0;
   }
 
+  .login-volume-control {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .login-volume-control input {
-    width: min(34vw, 120px);
+    width: min(52vw, 180px);
   }
 
   .profile-auth-controls {
     grid-template-columns: 1fr;
   }
 
-  .toolbar-meta {
-    width: 100%;
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
-
   .chart-card {
-    height: min(40vh, 320px);
-    min-height: 260px;
+    height: min(42vh, 300px);
+    min-height: 230px;
+    border-radius: 22px;
   }
 
   .purchase-panel {
-    padding: 20px;
+    padding: 16px;
+    border-radius: 24px;
   }
 
   .simulation-panel,
@@ -2541,12 +2734,76 @@ h1 {
     padding: 18px;
   }
 
+  .simulation-panel {
+    max-height: calc(100dvh - 24px);
+    gap: 14px;
+    border-radius: 22px;
+    padding-top: 52px;
+  }
+
+  .simulation-heading h2 {
+    font-size: clamp(1.85rem, 10vw, 2.45rem);
+    line-height: 1;
+  }
+
+  .simulation-subtitle {
+    font-size: 0.92rem;
+  }
+
+  .simulation-card {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .simulation-card strong {
+    font-size: clamp(1.8rem, 10vw, 2.55rem);
+    overflow-wrap: anywhere;
+  }
+
   .simulation-target-top {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .simulation-target-actions {
     justify-items: start;
+    width: 100%;
+  }
+
+  .simulation-live-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .simulation-delta-badge {
+    width: 100%;
+    white-space: normal;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  .simulation-slider-wrap {
+    padding: 30px 16px 18px;
+  }
+
+  .simulation-equilibrium {
+    max-width: calc(100% - 24px);
+  }
+
+  .simulation-equilibrium-label {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  .simulation-slider-scale {
+    gap: 8px;
+    font-size: 0.72rem;
+  }
+
+  .simulation-banter-text {
+    font-size: clamp(1.45rem, 8vw, 2.2rem);
   }
 
   .simulation-banter-card {
@@ -2554,10 +2811,14 @@ h1 {
   }
 
   .purchase-table-wrap {
-    margin-inline: -4px;
+    margin-inline: -2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 16px;
   }
 
   .purchase-table {
+    min-width: 760px;
     font-size: 0.8rem;
   }
 
@@ -2572,5 +2833,85 @@ h1 {
 
   .money-stack small {
     font-size: 0.68rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .shell {
+    width: min(100%, calc(100vw - 12px));
+    padding-top: 6px;
+  }
+
+  .sidebar-card,
+  .overview-dock-shell,
+  .purchase-panel {
+    border-radius: 20px;
+  }
+
+  .sidebar-card {
+    padding: 14px;
+  }
+
+  .hero-spotlight {
+    padding: 16px;
+  }
+
+  .hero-spotlight-header {
+    gap: 10px;
+  }
+
+  .hero-spotlight-body h1 {
+    font-size: clamp(2.05rem, 12vw, 2.8rem);
+  }
+
+  .news-item-title {
+    -webkit-line-clamp: 3;
+  }
+
+  .summary-grid strong {
+    font-size: clamp(1.18rem, 7vw, 1.55rem);
+  }
+
+  .toolbar {
+    margin-bottom: 10px;
+  }
+
+  .range-return {
+    font-size: 0.78rem;
+  }
+
+  .purchase-form input,
+  .purchase-form button {
+    min-height: 46px;
+  }
+
+  .purchase-table {
+    min-width: 700px;
+  }
+
+  .profile-gate {
+    padding-inline: 10px;
+  }
+
+  .profile-gate-panel h2 {
+    font-size: clamp(1.8rem, 10vw, 2.35rem);
+  }
+
+  .profile-card {
+    width: min(100%, 250px);
+  }
+
+  .login-audio-controls {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .simulation-panel {
+    padding-inline: 14px;
+  }
+
+  .simulation-card strong {
+    font-size: clamp(1.55rem, 9vw, 2.2rem);
   }
 }
