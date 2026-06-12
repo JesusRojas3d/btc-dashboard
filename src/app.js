@@ -215,84 +215,10 @@ const profileCatalog = {
   alzate: { id: "alzate", name: "Alzate" },
 };
 
-function resolveMotionDirection(previousValue, nextValue) {
-  if (Number.isFinite(previousValue) && Number.isFinite(nextValue)) {
-    if (nextValue > previousValue) {
-      return "up";
-    }
-
-    if (nextValue < previousValue) {
-      return "down";
-    }
-  }
-
-  return "neutral";
-}
-
 function getDisplayTextFromHtml(html) {
   const template = document.createElement("template");
   template.innerHTML = String(html ?? "");
   return template.content.textContent ?? "";
-}
-
-function isSlotFixedWidth(character) {
-  return /[0-9]/.test(character);
-}
-
-function shouldAnimateSlotCharacter(nextCharacter, previousCharacter) {
-  return (
-    Boolean(previousCharacter) &&
-    previousCharacter !== nextCharacter &&
-    isSlotFixedWidth(nextCharacter) &&
-    isSlotFixedWidth(previousCharacter)
-  );
-}
-
-function createSlotCharacter(nextCharacter, previousCharacter, direction, shouldAnimate) {
-  const characterElement = document.createElement("span");
-  characterElement.className = "slot-character";
-  characterElement.textContent = nextCharacter;
-
-  if (isSlotFixedWidth(nextCharacter) || isSlotFixedWidth(previousCharacter)) {
-    characterElement.classList.add("slot-character-number");
-  }
-
-  if (!shouldAnimate || direction === "neutral") {
-    return characterElement;
-  }
-
-  characterElement.classList.add("slot-character-animated", `slot-roll-${direction}`);
-
-  const previousElement = document.createElement("span");
-  previousElement.className = "slot-roll-old";
-  previousElement.textContent = previousCharacter || nextCharacter;
-
-  characterElement.append(previousElement);
-  return characterElement;
-}
-
-function createSlotFragment(nextText, previousText, direction, startIndex = 0) {
-  const fragment = document.createDocumentFragment();
-  const safeNextText = String(nextText ?? "");
-  const safePreviousText = String(previousText ?? "");
-  const previousCharacters = Array.from(safePreviousText);
-
-  Array.from(safeNextText).forEach((character, localIndex) => {
-    const globalIndex = startIndex + localIndex;
-    const previousCharacter = previousCharacters[globalIndex] || "";
-    const shouldAnimate = shouldAnimateSlotCharacter(character, previousCharacter);
-    fragment.append(createSlotCharacter(character, previousCharacter, direction, shouldAnimate));
-  });
-
-  return fragment;
-}
-
-function renderSlotText(element, nextText, previousText, direction) {
-  const wrapper = document.createElement("span");
-
-  wrapper.className = "slot-value";
-  wrapper.append(createSlotFragment(nextText, previousText, direction));
-  element.replaceChildren(wrapper);
 }
 
 function setStaticValue(element, content, mode) {
@@ -317,39 +243,17 @@ function setAnimatedValue(element, nextContent, options = {}) {
   const normalizedContent = String(nextContent ?? "");
   const nextDisplayText =
     mode === "html" ? getDisplayTextFromHtml(normalizedContent) : normalizedContent;
-  const previousMotion = motionKey ? valueMotionCache.get(motionKey) : null;
-  const previousContent =
-    previousMotion?.content ??
-    (mode === "html" ? element.innerHTML : element.textContent ?? "");
-  const previousDisplayText =
-    previousMotion?.display ??
-    (mode === "html" ? getDisplayTextFromHtml(previousContent) : previousContent);
-  const contentChanged = previousContent !== normalizedContent;
   const normalizedValue = Number.isFinite(numericValue) ? Number(numericValue) : null;
-  const direction = resolveMotionDirection(previousMotion?.value, normalizedValue);
 
-  if (!motionKey) {
-    setStaticValue(element, normalizedContent, mode);
-    return;
+  setStaticValue(element, normalizedContent, mode);
+
+  if (motionKey) {
+    valueMotionCache.set(motionKey, {
+      content: normalizedContent,
+      display: nextDisplayText,
+      value: normalizedValue,
+    });
   }
-
-  valueMotionCache.set(motionKey, {
-    content: normalizedContent,
-    display: nextDisplayText,
-    value: normalizedValue,
-  });
-
-  if (mode === "html") {
-    setStaticValue(element, normalizedContent, mode);
-    return;
-  }
-
-  if (!previousMotion || !contentChanged || direction === "neutral") {
-    renderSlotText(element, normalizedContent, normalizedContent, "neutral");
-    return;
-  }
-
-  renderSlotText(element, normalizedContent, previousDisplayText, direction);
 }
 
 function syncAnimatedNodes(rootElement = document) {
