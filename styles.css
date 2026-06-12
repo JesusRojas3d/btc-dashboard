@@ -488,8 +488,8 @@ body.profile-gate-open .shell {
 }
 
 .slot-character-animated {
-  width: 0.58em;
-  min-width: 0.58em;
+  width: 1ch;
+  min-width: 1ch;
   text-align: center;
 }
 
@@ -502,6 +502,14 @@ body.profile-gate-open .shell {
   will-change: transform, filter;
 }
 
+.slot-roll-stable {
+  display: inline-block;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  animation: slotStableReveal 0.54s steps(1, end) both;
+}
+
 .slot-roll-old,
 .slot-roll-new {
   position: absolute;
@@ -512,6 +520,11 @@ body.profile-gate-open .shell {
   color: currentColor;
   text-shadow: inherit;
   will-change: transform, filter, opacity;
+}
+
+.slot-roll-up .slot-roll-stable,
+.slot-roll-down .slot-roll-stable {
+  color: currentColor;
 }
 
 .slot-roll-up .slot-roll-old {
@@ -528,6 +541,16 @@ body.profile-gate-open .shell {
 
 .slot-roll-down .slot-roll-new {
   animation: slotNewDown 0.54s cubic-bezier(0.2, 0.92, 0.22, 1) both;
+}
+
+@keyframes slotStableReveal {
+  0%,
+  99% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 @keyframes slotOldUp {
@@ -554,8 +577,13 @@ body.profile-gate-open .shell {
     filter: blur(0);
     transform: translateY(-8%);
   }
-  100% {
+  99% {
     opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
     filter: blur(0);
     transform: translateY(0);
   }
@@ -585,8 +613,13 @@ body.profile-gate-open .shell {
     filter: blur(0);
     transform: translateY(8%);
   }
-  100% {
+  99% {
     opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
     filter: blur(0);
     transform: translateY(0);
   }

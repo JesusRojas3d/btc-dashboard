@@ -279,6 +279,10 @@ function createSlotCharacter(nextCharacter, previousCharacter, direction, should
   characterElement.textContent = "";
   characterElement.classList.add("slot-character-animated", `slot-roll-${direction}`);
 
+  const stableElement = document.createElement("span");
+  stableElement.className = "slot-roll-stable";
+  stableElement.textContent = nextCharacter;
+
   const previousElement = document.createElement("span");
   previousElement.className = "slot-roll-old";
   previousElement.textContent = previousCharacter || nextCharacter;
@@ -287,7 +291,7 @@ function createSlotCharacter(nextCharacter, previousCharacter, direction, should
   nextElement.className = "slot-roll-new";
   nextElement.textContent = nextCharacter;
 
-  characterElement.append(previousElement, nextElement);
+  characterElement.append(stableElement, previousElement, nextElement);
   return characterElement;
 }
 
