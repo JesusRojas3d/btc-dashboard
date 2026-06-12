@@ -248,21 +248,6 @@ function shouldAnimateSlotCharacter(nextCharacter, previousCharacter) {
   );
 }
 
-function getLockedSlotWidth(element) {
-  const currentWidth = element.getBoundingClientRect?.().width || 0;
-
-  if (!currentWidth) {
-    return 0;
-  }
-
-  const nextMinWidth = Math.ceil(
-    Math.max(Number(element.dataset.slotMinWidth) || 0, currentWidth),
-  );
-
-  element.dataset.slotMinWidth = String(nextMinWidth);
-  return nextMinWidth;
-}
-
 function createSlotCharacter(nextCharacter, previousCharacter, direction, shouldAnimate) {
   const characterElement = document.createElement("span");
   characterElement.className = "slot-character";
@@ -313,14 +298,8 @@ function createSlotFragment(nextText, previousText, direction, startIndex = 0) {
 
 function renderSlotText(element, nextText, previousText, direction) {
   const wrapper = document.createElement("span");
-  const lockedWidth = getLockedSlotWidth(element);
 
   wrapper.className = "slot-value";
-
-  if (lockedWidth) {
-    wrapper.style.minWidth = `${lockedWidth}px`;
-  }
-
   wrapper.append(createSlotFragment(nextText, previousText, direction));
   element.replaceChildren(wrapper);
 }

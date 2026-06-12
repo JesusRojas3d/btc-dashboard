@@ -469,6 +469,8 @@ body.profile-gate-open .shell {
 
 .slot-value {
   display: inline-block;
+  width: auto;
+  max-width: max-content;
   font-variant-numeric: tabular-nums;
   line-height: inherit;
   text-align: inherit;
