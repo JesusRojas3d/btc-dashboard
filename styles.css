@@ -494,8 +494,7 @@ body.profile-gate-open .shell {
   overflow: hidden;
   width: 1ch;
   min-width: 1ch;
-  height: 1em;
-  line-height: 1em;
+  line-height: inherit;
   text-align: center;
   vertical-align: baseline;
 }
@@ -505,61 +504,26 @@ body.profile-gate-open .shell {
   will-change: transform, filter;
 }
 
-.slot-roll-stable {
-  display: block;
-  width: 100%;
-  height: 1em;
-  line-height: 1em;
-  opacity: 0;
-  pointer-events: none;
-  text-align: center;
-  user-select: none;
-  animation: slotStableReveal 0.54s steps(1, end) both;
-}
-
-.slot-roll-old,
-.slot-roll-new {
+.slot-roll-old {
   position: absolute;
   inset: 0;
   display: block;
   width: 100%;
-  height: 1em;
   color: currentColor;
-  line-height: 1em;
+  line-height: inherit;
   text-align: center;
   text-shadow: inherit;
+  pointer-events: none;
+  user-select: none;
   will-change: transform, filter, opacity;
-}
-
-.slot-roll-up .slot-roll-stable,
-.slot-roll-down .slot-roll-stable {
-  color: currentColor;
 }
 
 .slot-roll-up .slot-roll-old {
   animation: slotOldUp 0.54s cubic-bezier(0.2, 0.92, 0.22, 1) both;
 }
 
-.slot-roll-up .slot-roll-new {
-  animation: slotNewUp 0.54s cubic-bezier(0.2, 0.92, 0.22, 1) both;
-}
-
 .slot-roll-down .slot-roll-old {
   animation: slotOldDown 0.54s cubic-bezier(0.2, 0.92, 0.22, 1) both;
-}
-
-.slot-roll-down .slot-roll-new {
-  animation: slotNewDown 0.54s cubic-bezier(0.2, 0.92, 0.22, 1) both;
-}
-
-@keyframes slotStableReveal {
-  0%,
-  99% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
 }
 
 @keyframes slotOldUp {
@@ -575,29 +539,6 @@ body.profile-gate-open .shell {
   }
 }
 
-@keyframes slotNewUp {
-  0% {
-    opacity: 0;
-    filter: blur(5px);
-    transform: translateY(115%);
-  }
-  58% {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(-8%);
-  }
-  99% {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    filter: blur(0);
-    transform: translateY(0);
-  }
-}
-
 @keyframes slotOldDown {
   0% {
     opacity: 1;
@@ -608,29 +549,6 @@ body.profile-gate-open .shell {
     opacity: 0;
     filter: blur(5px);
     transform: translateY(115%);
-  }
-}
-
-@keyframes slotNewDown {
-  0% {
-    opacity: 0;
-    filter: blur(5px);
-    transform: translateY(-115%);
-  }
-  58% {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(8%);
-  }
-  99% {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    filter: blur(0);
-    transform: translateY(0);
   }
 }
 
